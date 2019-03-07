@@ -1,7 +1,8 @@
 /*
  * This file is a part of Haze.
  *
- * Haze, Player's Point Manager. Copyright (C) 2019 OKOCRAFT
+ * Haze, Player's Point Manager.
+ * Copyright (C) 2019 OKOCRAFT
  *
  * This program is free software: you can redistribute it and/or modify it under the terms of the
  * GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -30,10 +31,21 @@ import net.okocraft.haze.command.HazeCommand;
  * @author OKOCRAFT
  */
 public class Haze extends JavaPlugin {
+
+    /**
+     * Haze のバージョン。
+     */
     @Getter
-    private final String version = Optional
-            .ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
+    private final String version;
+
+    /**
+     * プラグイン Haze のインスタンス。
+     */
     private static Haze instance;
+
+    public Haze() {
+        this.version = Optional.ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
+    }
 
     @Override
     public void onEnable() {
