@@ -18,8 +18,6 @@
 
 package net.okocraft.haze;
 
-import java.util.Optional;
-
 import lombok.Getter;
 
 import org.bukkit.Bukkit;
@@ -44,7 +42,7 @@ public class Haze extends JavaPlugin {
     private static Haze instance;
 
     public Haze() {
-        this.version = Optional.ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
+        this.version = getClass().getPackage().getImplementationVersion();
     }
 
     @Override

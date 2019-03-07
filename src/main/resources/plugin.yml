@@ -23,7 +23,7 @@ name: ${project.artifactId}
 version: ${project.version}
 description: "Haze, Player's Point Manager."
 authors: [okocraft]
-api-version: "1.13.2"
+api-version: "1.13"
 
 permissions:
   haze.admin:

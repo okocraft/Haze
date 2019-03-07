@@ -42,7 +42,7 @@ public class HazeCommand implements CommandExecutor {
         val subCommand = Strings.isNullOrEmpty(args[0]) ? "" : args[0];
 
         if (subCommand.equalsIgnoreCase("version")) {
-             Haze.getInstance().getVersion();
+             sender.sendMessage(Haze.getInstance().getVersion());
 
              return true;
         }
