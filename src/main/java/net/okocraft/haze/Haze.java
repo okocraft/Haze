@@ -1,8 +1,7 @@
 /*
  * This file is a part of Haze.
  *
- * Haze, Player's Point Manager.
- * Copyright (C) 2019 OKOCRAFT
+ * Haze, Player's Point Manager. Copyright (C) 2019 OKOCRAFT
  *
  * This program is free software: you can redistribute it and/or modify it under the terms of the
  * GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -18,26 +17,51 @@
 
 package net.okocraft.haze;
 
+import java.util.Optional;
+
+import lombok.Getter;
+
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import net.okocraft.haze.command.CommandDispatcher;
 
 /**
  * @author OKOCRAFT
  */
 public class Haze extends JavaPlugin {
+    @Getter
+    private final String version = Optional
+            .ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
+    private Haze instance;
+
+    private CommandDispatcher dispatcher;
+
+    @Override
+    public void onEnable() {
+        dispatcher = new CommandDispatcher();
+    }
+
     @Override
     public void onDisable() {
         super.onDisable();
     }
 
     @Override
-    public void onEnable() {
-        super.onEnable();
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!command.getName().equals("haze"))
+            return false;
+
+        return dispatcher.dispatch(sender, command, label, args);
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        return super.onCommand(sender, command, label, args);
+    public Haze getInstance() {
+        if (instance == null) {
+            instance = (Haze) Bukkit.getPluginManager().getPlugin("Haze");
+        }
+
+        return instance;
     }
 }
