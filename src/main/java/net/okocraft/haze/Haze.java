@@ -33,7 +33,7 @@ public class Haze extends JavaPlugin {
     @Getter
     private final String version = Optional
             .ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
-    private Haze instance;
+    private static Haze instance;
 
     @Override
     public void onEnable() {
@@ -45,7 +45,7 @@ public class Haze extends JavaPlugin {
         super.onDisable();
     }
 
-    public Haze getInstance() {
+    public static Haze getInstance() {
         if (instance == null) {
             instance = (Haze) Bukkit.getPluginManager().getPlugin("Haze");
         }
