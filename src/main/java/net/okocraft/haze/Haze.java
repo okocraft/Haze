@@ -22,11 +22,9 @@ import java.util.Optional;
 import lombok.Getter;
 
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import net.okocraft.haze.command.CommandDispatcher;
+import net.okocraft.haze.command.HazeCommand;
 
 /**
  * @author OKOCRAFT
@@ -37,24 +35,14 @@ public class Haze extends JavaPlugin {
             .ofNullable(getClass().getPackage().getImplementationVersion()).orElse("unknown");
     private Haze instance;
 
-    private CommandDispatcher dispatcher;
-
     @Override
     public void onEnable() {
-        dispatcher = new CommandDispatcher();
+        getCommand("haze").setExecutor(new HazeCommand());
     }
 
     @Override
     public void onDisable() {
         super.onDisable();
-    }
-
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!command.getName().equals("haze"))
-            return false;
-
-        return dispatcher.dispatch(sender, command, label, args);
     }
 
     public Haze getInstance() {
