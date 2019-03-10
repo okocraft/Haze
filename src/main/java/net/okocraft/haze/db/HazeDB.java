@@ -22,50 +22,49 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.val;
-import org.bukkit.entity.Player;
 
 public class HazeDB implements Runnable {
     @Getter
-    final String fileUrl;
+    private String fileUrl;
 
     /**
      * データベースへの URL 。{@code jdbc:sqlite:database}
      */
     @Getter
-    final String DBUrl;
+    private String DBUrl;
 
     /**
      * データベース接続のプロパティ
      */
-    final Properties DBProps;
+    private final Properties DBProps;
 
     /**
      * データベースの参照用スレッドプール
      */
-    final ExecutorService threadPool;
+    private final ExecutorService threadPool;
 
     /**
      * データベースへの接続。
      */
-    static Connection connection;
+    private static Optional<Connection> connection;
 
-    public HazeDB(String url) {
+    public HazeDB() {
         // Configure SQLite properties
         DBProps = new Properties();
         DBProps.put("journal_mode", "WAL");
         DBProps.put("synchronous", "NORMAL");
-
-        // Set DB URL
-        fileUrl = url;
-        DBUrl = "jdbc:sqlite:" + url;
 
         try {
             Class.forName("org.sqlite.JDBC");
@@ -73,7 +72,7 @@ public class HazeDB implements Runnable {
             exception.printStackTrace();
         }
 
-        threadPool = Executors.newFixedThreadPool(1);
+        threadPool = Executors.newCachedThreadPool();
     }
 
     @Override
@@ -94,18 +93,31 @@ public class HazeDB implements Runnable {
      * @throws SQLException {@link HazeDB#HazeDB(String)}
      *
      */
-    public void initialize() throws IOException, SQLException {
+    public void connect(String url) {
+        // Set DB URL
+        fileUrl = url;
+        DBUrl = "jdbc:sqlite:" + url;
+
         connection = getConnection(DBUrl, DBProps);
-        connection.setAutoCommit(false);
 
-        val file = Paths.get(fileUrl);
+        try {
+            val file = Paths.get(fileUrl);
 
-        if (!Files.exists(file)) {
-            Files.createFile(file);
+            if (!Files.exists(file)) {
+                Files.createFile(file);
+            }
+        } catch (IOException exception) {
+            exception.printStackTrace();
+
+            return;
         }
 
-        connection.createStatement().executeUpdate(
-                "CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)");
+        connection.ifPresent(connection -> {
+            prepare("CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)")
+                    .ifPresent(statement -> {
+                        exec(statement);
+                    });
+        });
     }
 
     /**
@@ -116,10 +128,16 @@ public class HazeDB implements Runnable {
      *
      * @throws SQLException 切断に失敗した場合
      */
-    public void destruct() throws SQLException {
-        if (Objects.nonNull(connection)) {
-            connection.close();
-        }
+    public void dispose() {
+        connection.ifPresent(connection -> {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+
+        connection = Optional.empty();
     }
 
     /**
@@ -132,36 +150,70 @@ public class HazeDB implements Runnable {
      * @param value  値
      *
      */
-    public void addRecord(Player player, String value) {
+    public void addRecord(@NonNull UUID uuid, @NonNull String name) {
         if (Objects.isNull(connection)) {
             return;
         }
 
+        prepare("INSERT OR IGNORE INTO haze VALUES (?, ?)").ifPresent(statement -> {
+            try {
+                statement.setString(1, uuid.toString());
+                statement.setString(2, name);
+                statement.addBatch();
+
+                // Execute this batch
+                exec(statement);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void exec(@NonNull PreparedStatement statement) {
         threadPool.submit(new Runnable() {
             @Override
             public void run() {
                 try {
-                    val uuid = player.getUniqueId().toString();
-                    val name = player.getName();
-
-                    val statement =
-                            connection.prepareStatement("INSERT OR IGNORE INTO haze VALUES (?, ?)");
-
-                    statement.setString(1, uuid);
-                    statement.setString(2, name);
-                    statement.addBatch();
-
                     statement.executeBatch();
-                } catch (SQLException e) {
-                    e.getSQLState();
-                    e.printStackTrace();
+                } catch (SQLException exception) {
+                    exception.printStackTrace();
+                } finally {
+                    try {
+                        statement.close();
+                    } catch (SQLException exception) {
+                        exception.printStackTrace();
+                    }
                 }
             }
         });
     }
 
     /**
-     * {@link DriverManager#getConnection(String, Properties)} のラッパーメソッド。
+     * SQL 準備文を構築する。
+     *
+     * @author akaregi
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @param sql SQL 文。
+     *
+     * @return {@code Optional}、中身は構築に成功したなら準備文、さもなくば空
+     */
+    public Optional<PreparedStatement> prepare(@NonNull String sql) {
+        if (connection.isPresent()) {
+            try {
+                return Optional.of(connection.get().prepareStatement(sql));
+            } catch (SQLException e) {
+                e.printStackTrace();
+
+                return Optional.empty();
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Connection(String, Properties)} のラッパーメソッド。
      *
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
@@ -171,10 +223,17 @@ public class HazeDB implements Runnable {
      * @param url   {@code jdbc:subprotocol:subname} という形式のデータベース URL
      * @param props データベースの取り扱いについてのプロパティ
      *
-     * @return 指定されたデータベースへの接続。
+     * @return 指定されたデータベースへの接続 {@code Connect} 。
      *
      */
-    private static Connection getConnection(String url, Properties props) throws SQLException {
-        return DriverManager.getConnection(url, props);
+    private static Optional<Connection> getConnection(@NonNull String url,
+            @NonNull Properties props) {
+        try {
+            return Optional.of(DriverManager.getConnection(url, props));
+        } catch (SQLException e) {
+            e.printStackTrace();
+
+            return Optional.empty();
+        }
     }
 }

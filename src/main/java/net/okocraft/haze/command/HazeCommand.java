@@ -1,8 +1,7 @@
 /*
  * This file is a part of Haze.
  *
- * Haze, Player's Point Manager.
- * Copyright (C) 2019 OKOCRAFT
+ * Haze, Player's Point Manager. Copyright (C) 2019 OKOCRAFT
  *
  * This program is free software: you can redistribute it and/or modify it under the terms of the
  * GNU General Public License as published by the Free Software Foundation, either version 3 of the
@@ -18,6 +17,8 @@
 
 package net.okocraft.haze.command;
 
+import java.util.UUID;
+
 import lombok.NonNull;
 import lombok.val;
 
@@ -28,23 +29,45 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
 import net.okocraft.haze.Haze;
+import net.okocraft.haze.db.HazeDB;
 
 public class HazeCommand implements CommandExecutor {
+    private HazeDB database;
+
+    public HazeCommand(HazeDB database) {
+        this.database = database;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("haze.admin"))
+        // insufficient permission
+        if (!sender.hasPermission("haze.admin")) {
             return true;
+        }
 
-        if (args.length == 0)
+        // only /hz
+        if (Strings.isNullOrEmpty(args[0])) {
             return false;
+        }
 
         @NonNull
-        val subCommand = Strings.isNullOrEmpty(args[0]) ? "" : args[0];
+        val subCommand = args[0];
 
+        // hz version
         if (subCommand.equalsIgnoreCase("version")) {
              sender.sendMessage(Haze.getInstance().getVersion());
 
              return true;
+        }
+
+        // hz write
+        if (subCommand.equalsIgnoreCase("write")) {
+            val name = "Hashibami_";            // NOTE: For testing
+            val uuid = UUID.fromString(name);   // NOTE: For testing
+
+            database.addRecord(uuid, name);
+
+            return true;
         }
 
         return true;

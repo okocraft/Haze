@@ -17,9 +17,6 @@
 
 package net.okocraft.haze;
 
-import java.io.IOException;
-import java.sql.SQLException;
-
 import lombok.Getter;
 
 import org.slf4j.Logger;
@@ -57,7 +54,7 @@ public class Haze extends JavaPlugin {
 
     public Haze() {
         version = getClass().getPackage().getImplementationVersion();
-        database = new HazeDB(getDataFolder().getPath() + "/data.db");
+        database = new HazeDB();
     }
 
     @Override
@@ -68,30 +65,19 @@ public class Haze extends JavaPlugin {
         log.info("Installed in : " + getDataFolder().getPath());
         log.info("Database file: " + database.getDBUrl());
 
-        // Initialize database
-        try {
-            database.initialize();
-        } catch (IOException exception) {
-            log.error("Failed to create database file.");
-            exception.printStackTrace();
-        } catch (SQLException exception) {
-            log.error("Failed to connect to database.");
-            exception.printStackTrace();
-        }
+        // Connect to database
+        database.connect(getDataFolder().getPath() + "/data.db");
 
-        getCommand("haze").setExecutor(new HazeCommand());
+        // Register command /haze
+        getCommand("haze").setExecutor(new HazeCommand(database));
 
+        // GO GO GO
         log.info("Haze enabled!");
     }
 
     @Override
     public void onDisable() {
-        try {
-            database.destruct();
-        } catch (SQLException exception) {
-            log.error("Failed to close the connection to database.");
-            exception.printStackTrace();
-        }
+        database.dispose();
 
         log.info("Haze disabled!");
     }
