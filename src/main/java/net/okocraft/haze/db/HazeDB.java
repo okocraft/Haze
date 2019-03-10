@@ -23,13 +23,16 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import lombok.Getter;
 import lombok.val;
 import org.bukkit.entity.Player;
 
-public class HazeDB {
+public class HazeDB implements Runnable {
     final Properties DBProp;
 
     @Getter
@@ -42,9 +45,14 @@ public class HazeDB {
     final String DBUrl;
 
     /**
+     * データベースの参照用スレッドプール
+     */
+    final ExecutorService executor;
+
+    /**
      * データベースへの接続。
      */
-    private Connection connection;
+    Connection connection;
 
     public HazeDB(String url) {
         // Configure SQLite properties
@@ -61,6 +69,13 @@ public class HazeDB {
         } catch (ClassNotFoundException exception) {
             exception.printStackTrace();
         }
+
+        executor = Executors.newFixedThreadPool(1);
+    }
+
+    @Override
+    public void run() {
+
     }
 
     /**
@@ -78,7 +93,7 @@ public class HazeDB {
      */
     public void initialize() throws IOException, SQLException {
         connection = getConnection(DBUrl, DBProp);
-        connection.setAutoCommit(true);
+        connection.setAutoCommit(false);
 
         val file = Paths.get(fileUrl);
 
@@ -99,7 +114,9 @@ public class HazeDB {
      * @throws SQLException 切断に失敗した場合
      */
     public void destruct() throws SQLException {
-        connection.close();
+        if (Objects.nonNull(connection)) {
+            connection.close();
+        }
     }
 
     /**
@@ -111,24 +128,33 @@ public class HazeDB {
      * @param player プレイヤー
      * @param value  値
      *
-     * @throws SQLException レコードの追加に失敗した場合
-     *
      */
-    public synchronized void addRecord(Player player, String value) throws SQLException {
-        connection.setAutoCommit(false);
+    public void addRecord(Player player, String value) {
+        if (Objects.isNull(connection)) {
+            return;
+        }
 
-        val uuid = player.getUniqueId().toString();
-        val name = player.getName();
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    val uuid = player.getUniqueId().toString();
+                    val name = player.getName();
 
-        val statement = connection.prepareStatement("INSERT OR IGNORE INTO haze VALUES (?, ?)");
+                    val statement =
+                            connection.prepareStatement("INSERT OR IGNORE INTO haze VALUES (?, ?)");
 
-        statement.setString(1, uuid);
-        statement.setString(2, name);
-        statement.addBatch();
+                    statement.setString(1, uuid);
+                    statement.setString(2, name);
+                    statement.addBatch();
 
-        statement.executeBatch();
-
-        connection.setAutoCommit(true);
+                    statement.executeBatch();
+                } catch (SQLException e) {
+                    e.getSQLState();
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     /**
