@@ -33,8 +33,6 @@ import lombok.val;
 import org.bukkit.entity.Player;
 
 public class HazeDB implements Runnable {
-    final Properties DBProp;
-
     @Getter
     final String fileUrl;
 
@@ -45,20 +43,25 @@ public class HazeDB implements Runnable {
     final String DBUrl;
 
     /**
+     * データベース接続のプロパティ
+     */
+    final Properties DBProps;
+
+    /**
      * データベースの参照用スレッドプール
      */
-    final ExecutorService executor;
+    final ExecutorService threadPool;
 
     /**
      * データベースへの接続。
      */
-    Connection connection;
+    static Connection connection;
 
     public HazeDB(String url) {
         // Configure SQLite properties
-        DBProp = new Properties();
-        DBProp.put("journal_mode", "WAL");
-        DBProp.put("synchronous", "NORMAL");
+        DBProps = new Properties();
+        DBProps.put("journal_mode", "WAL");
+        DBProps.put("synchronous", "NORMAL");
 
         // Set DB URL
         fileUrl = url;
@@ -70,7 +73,7 @@ public class HazeDB implements Runnable {
             exception.printStackTrace();
         }
 
-        executor = Executors.newFixedThreadPool(1);
+        threadPool = Executors.newFixedThreadPool(1);
     }
 
     @Override
@@ -92,7 +95,7 @@ public class HazeDB implements Runnable {
      *
      */
     public void initialize() throws IOException, SQLException {
-        connection = getConnection(DBUrl, DBProp);
+        connection = getConnection(DBUrl, DBProps);
         connection.setAutoCommit(false);
 
         val file = Paths.get(fileUrl);
@@ -134,7 +137,7 @@ public class HazeDB implements Runnable {
             return;
         }
 
-        executor.submit(new Runnable() {
+        threadPool.submit(new Runnable() {
             @Override
             public void run() {
                 try {
