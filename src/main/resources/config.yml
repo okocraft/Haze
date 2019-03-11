@@ -17,3 +17,11 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+
+messages:
+    param:
+        insufficient: "Insufficient parameter(s)."
+        unknown: "Unknowm parameter(s)."
+
+    permission:
+        insufficient: "Insufficient permission."

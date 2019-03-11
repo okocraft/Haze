@@ -29,7 +29,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+import java.util.concurrent.Future;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
@@ -69,7 +69,7 @@ public class Database {
         DBProps.put("synchronous", "NORMAL");
 
         // Create new thread pool
-        threadPool = Executors.newCachedThreadPool();
+        threadPool = Executors.newSingleThreadExecutor();
     }
 
     /**
@@ -99,6 +99,8 @@ public class Database {
         // Connect to database
         connection = getConnection(DBUrl, DBProps);
 
+        // Check if the database file exists.
+        // If not exist, attempt to create the file.
         try {
             val file = Paths.get(fileUrl);
 
@@ -111,11 +113,15 @@ public class Database {
             return;
         }
 
+        // Check if the table exists.
+        // If not exist, attempt to create the table.
         connection.ifPresent(connection -> {
-            prepare("CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)")
-                    .ifPresent(statement -> {
-                        exec(statement);
-                    });
+            try {
+                connection.createStatement().execute(
+                        "CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)");
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         });
     }
 
@@ -163,6 +169,25 @@ public class Database {
         });
     }
 
+    public String readRecord(String uuid) {
+        val statement = prepare("SELECT player FROM haze WHERE uuid = ?");
+
+        Optional<String> result = statement.map(stmt -> {
+            try {
+                stmt.setString(1, uuid);
+                stmt.addBatch();
+
+                return stmt.executeQuery().getString("player");
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+
+                return "";
+            }
+        });
+
+        return result.orElse(":NOTHING");
+    }
+
     /**
      * スレッドプールにて SQL 準備文を実行する。
      *
@@ -172,8 +197,8 @@ public class Database {
      * @param statement SQL 準備文
      *
      */
-    private void exec(@NonNull PreparedStatement statement) {
-        threadPool.submit(new StatementRunner(statement));
+    private Future<?> exec(@NonNull PreparedStatement statement) {
+        return threadPool.submit(new StatementRunner(statement));
     }
 
     /**
@@ -218,8 +243,8 @@ public class Database {
     private static Optional<Connection> getConnection(@NonNull String url, Properties props) {
         try {
             return Optional.of(DriverManager.getConnection(url, props));
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (SQLException exception) {
+            exception.printStackTrace();
 
             return Optional.empty();
         }

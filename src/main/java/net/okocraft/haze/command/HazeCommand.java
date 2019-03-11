@@ -22,8 +22,6 @@ import java.util.UUID;
 import lombok.NonNull;
 import lombok.val;
 
-import com.google.common.base.Strings;
-
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -42,11 +40,13 @@ public class HazeCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         // insufficient permission
         if (!sender.hasPermission("haze.admin")) {
+            sender.sendMessage(":PERM_INSUFFICIENT");
             return true;
         }
 
         // only /hz
-        if (Strings.isNullOrEmpty(args[0])) {
+        if (args.length == 0) {
+            sender.sendMessage(":PARAM_INSUFFICIENT");
             return false;
         }
 
@@ -62,14 +62,29 @@ public class HazeCommand implements CommandExecutor {
 
         // hz write
         if (subCommand.equalsIgnoreCase("write")) {
-            val name = "Hashibami_";            // NOTE: For testing
-            val uuid = UUID.fromString(name);   // NOTE: For testing
+            // NOTE: For testing
+            val uuid = UUID.randomUUID();
+            val name = uuid.toString().substring(0, 6);
 
             database.addRecord(uuid, name);
 
             return true;
         }
 
+        if (subCommand.equalsIgnoreCase("read")) {
+            if (args.length <= 1) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val uuid = args[1];
+
+            sender.sendMessage(database.readRecord(uuid));
+
+            return true;
+        }
+
+        sender.sendMessage(":PARAM_UNKNOWN");
         return true;
     }
 }

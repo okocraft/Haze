@@ -61,25 +61,25 @@ public class Haze extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
+        // Connect to database
+        database.connect(getDataFolder().getPath() + "/data.db");
+
         // Implementation info
         log.info("Installed in : " + getDataFolder().getPath());
         log.info("Database file: " + database.getDBUrl());
-
-        // Connect to database
-        database.connect(getDataFolder().getPath() + "/data.db");
 
         // Register command /haze
         getCommand("haze").setExecutor(new HazeCommand(database));
 
         // GO GO GO
-        log.info("Haze enabled!");
+        log.info("Haze has been enabled!");
     }
 
     @Override
     public void onDisable() {
         database.dispose();
 
-        log.info("Haze disabled!");
+        log.info("Haze has been disabled!");
     }
 
     public static Haze getInstance() {
