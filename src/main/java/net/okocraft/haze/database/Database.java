@@ -149,10 +149,6 @@ public class Database {
      *
      */
     public void addRecord(@NonNull UUID uuid, @NonNull String name) {
-        if (connection.isPresent()) {
-            return;
-        }
-
         prepare("INSERT OR IGNORE INTO haze VALUES (?, ?)").ifPresent(statement -> {
             try {
                 statement.setString(1, uuid.toString());
