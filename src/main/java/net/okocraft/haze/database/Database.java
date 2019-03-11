@@ -15,7 +15,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-package net.okocraft.haze.db;
+package net.okocraft.haze.database;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,7 +24,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -35,7 +34,10 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
 
-public class HazeDB implements Runnable {
+public class Database {
+    /**
+     * データベルファイルへの URL 。{@code plugins/Haze/data.db}
+     */
     @Getter
     private String fileUrl;
 
@@ -60,24 +62,14 @@ public class HazeDB implements Runnable {
      */
     private static Optional<Connection> connection;
 
-    public HazeDB() {
-        // Configure SQLite properties
+    public Database() {
+        // Configure database properties
         DBProps = new Properties();
         DBProps.put("journal_mode", "WAL");
         DBProps.put("synchronous", "NORMAL");
 
-        try {
-            Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException exception) {
-            exception.printStackTrace();
-        }
-
+        // Create new thread pool
         threadPool = Executors.newCachedThreadPool();
-    }
-
-    @Override
-    public void run() {
-
     }
 
     /**
@@ -89,15 +81,22 @@ public class HazeDB implements Runnable {
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
      *
-     * @throws IOException  {@link HazeDB#HazeDB(String)}
-     * @throws SQLException {@link HazeDB#HazeDB(String)}
-     *
      */
     public void connect(String url) {
+        // Check if driver exists
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException exception) {
+            exception.printStackTrace();
+
+            return;
+        }
+
         // Set DB URL
         fileUrl = url;
         DBUrl = "jdbc:sqlite:" + url;
 
+        // Connect to database
         connection = getConnection(DBUrl, DBProps);
 
         try {
@@ -126,7 +125,6 @@ public class HazeDB implements Runnable {
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
      *
-     * @throws SQLException 切断に失敗した場合
      */
     public void dispose() {
         connection.ifPresent(connection -> {
@@ -146,12 +144,12 @@ public class HazeDB implements Runnable {
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
      *
-     * @param player プレイヤー
-     * @param value  値
+     * @param uuid UUID
+     * @param name 名前
      *
      */
     public void addRecord(@NonNull UUID uuid, @NonNull String name) {
-        if (Objects.isNull(connection)) {
+        if (connection.isPresent()) {
             return;
         }
 
@@ -169,23 +167,17 @@ public class HazeDB implements Runnable {
         });
     }
 
+    /**
+     * スレッドプールにて SQL 準備文を実行する。
+     *
+     * @since 1.0.0-SNAPSHOT
+     * @author akaregi
+     *
+     * @param statement SQL 準備文
+     *
+     */
     private void exec(@NonNull PreparedStatement statement) {
-        threadPool.submit(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    statement.executeBatch();
-                } catch (SQLException exception) {
-                    exception.printStackTrace();
-                } finally {
-                    try {
-                        statement.close();
-                    } catch (SQLException exception) {
-                        exception.printStackTrace();
-                    }
-                }
-            }
-        });
+        threadPool.submit(new StatementRunner(statement));
     }
 
     /**
@@ -196,7 +188,8 @@ public class HazeDB implements Runnable {
      *
      * @param sql SQL 文。
      *
-     * @return {@code Optional}、中身は構築に成功したなら準備文、さもなくば空
+     * @return SQL 準備文
+     *
      */
     public Optional<PreparedStatement> prepare(@NonNull String sql) {
         if (connection.isPresent()) {
@@ -226,8 +219,7 @@ public class HazeDB implements Runnable {
      * @return 指定されたデータベースへの接続 {@code Connect} 。
      *
      */
-    private static Optional<Connection> getConnection(@NonNull String url,
-            @NonNull Properties props) {
+    private static Optional<Connection> getConnection(@NonNull String url, Properties props) {
         try {
             return Optional.of(DriverManager.getConnection(url, props));
         } catch (SQLException e) {

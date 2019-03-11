@@ -29,12 +29,12 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
 import net.okocraft.haze.Haze;
-import net.okocraft.haze.db.HazeDB;
+import net.okocraft.haze.database.Database;
 
 public class HazeCommand implements CommandExecutor {
-    private HazeDB database;
+    private Database database;
 
-    public HazeCommand(HazeDB database) {
+    public HazeCommand(Database database) {
         this.database = database;
     }
 

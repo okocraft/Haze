@@ -26,7 +26,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.okocraft.haze.command.HazeCommand;
-import net.okocraft.haze.db.HazeDB;
+import net.okocraft.haze.database.Database;
 
 /**
  * @author OKOCRAFT
@@ -50,11 +50,11 @@ public class Haze extends JavaPlugin {
     /**
      * データベース。
      */
-    private final HazeDB database;
+    private final Database database;
 
     public Haze() {
         version = getClass().getPackage().getImplementationVersion();
-        database = new HazeDB();
+        database = new Database();
     }
 
     @Override
