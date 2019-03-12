@@ -71,15 +71,17 @@ public class HazeCommand implements CommandExecutor {
             return true;
         }
 
+        // hz read <uuid> <column>
         if (subCommand.equalsIgnoreCase("read")) {
-            if (args.length <= 1) {
+            if (args.length <= 2) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
 
             val uuid = args[1];
+            val column = args[2];
 
-            sender.sendMessage(database.readRecord(uuid));
+            sender.sendMessage(database.readRecord(uuid, column));
 
             return true;
         }

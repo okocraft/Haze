@@ -23,13 +23,15 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
@@ -80,7 +82,6 @@ public class Database {
      *
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
-     *
      */
     public void connect(String url) {
         // Check if driver exists
@@ -126,11 +127,10 @@ public class Database {
     }
 
     /**
-     * データベースの接続を切断する。
+     * データベースへの接続を切断する。
      *
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
-     *
      */
     public void dispose() {
         connection.ifPresent(connection -> {
@@ -152,30 +152,28 @@ public class Database {
      *
      * @param uuid UUID
      * @param name 名前
-     *
      */
     public void addRecord(@NonNull UUID uuid, @NonNull String name) {
         prepare("INSERT OR IGNORE INTO haze VALUES (?, ?)").ifPresent(statement -> {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
-                statement.addBatch();
 
                 // Execute this batch
-                exec(statement);
+                threadPool.submit(new StatementRunner(statement));
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         });
     }
 
-    public String readRecord(String uuid) {
-        val statement = prepare("SELECT player FROM haze WHERE uuid = ?");
+    public String readRecord(String uuid, String column) {
+        val statement = prepare("SELECT ? FROM haze WHERE uuid = ?");
 
-        Optional<String> result = statement.map(stmt -> {
+        val result = statement.map(stmt -> {
             try {
-                stmt.setString(1, uuid);
-                stmt.addBatch();
+                stmt.setString(1, column);
+                stmt.setString(2, uuid);
 
                 return stmt.executeQuery().getString("player");
             } catch (SQLException exception) {
@@ -189,16 +187,88 @@ public class Database {
     }
 
     /**
-     * スレッドプールにて SQL 準備文を実行する。
+     * テーブルに新しい列 {@code column} を追加する。
      *
-     * @since 1.0.0-SNAPSHOT
      * @author akaregi
+     * @since 1.0.0-SNAPSHOT
      *
-     * @param statement SQL 準備文
+     * @param table  列を追加するテーブル。
+     * @param column 列の名前。
+     * @param type   列の型。
      *
+     * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
-    private Future<?> exec(@NonNull PreparedStatement statement) {
-        return threadPool.submit(new StatementRunner(statement));
+    public boolean addColumn(String table, String column, String type) {
+        val statement = prepare("ALTER TABLE ? ADD ? ?");
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(0, table);
+                stmt.setString(1, column);
+                stmt.setString(2, type);
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
+
+        val result = statement.map(stmt -> {
+            return exec(stmt);
+        });
+
+        return result.isPresent();
+    }
+
+    /**
+     * テーブルから列 {@code column} を削除する。
+     *
+     * @author akaregi
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @param table  列を削除するテーブル。
+     * @param column 列の名前。
+     *
+     * @return 成功したなら {@code true} 、さもなくば {@code false} 。
+     */
+    public boolean dropColumn(String table, String column) {
+        val statement = prepare("ALTER TABLE ? DROP COLUMN ?");
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(0, table);
+                stmt.setString(1, column);
+
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
+
+        val result = statement.map(stmt -> {
+            return exec(stmt);
+        });
+
+        return result.isPresent();
+    }
+
+    /**
+     * スレッド上で SQL を実行する。
+     *
+     * @author akaregi
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @param statement SQL 準備文。
+     *
+     * @return {@Code ResultSet}
+     */
+    public Optional<ResultSet> exec(PreparedStatement statement) {
+        val thread = threadPool.submit(new StatementCaller(statement));
+
+        try {
+            return thread.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+
+            return Optional.empty();
+        }
     }
 
     /**
@@ -210,7 +280,6 @@ public class Database {
      * @param sql SQL 文。
      *
      * @return SQL 準備文
-     *
      */
     public Optional<PreparedStatement> prepare(@NonNull String sql) {
         if (connection.isPresent()) {
@@ -238,7 +307,6 @@ public class Database {
      * @param props データベースの取り扱いについてのプロパティ
      *
      * @return 指定されたデータベースへの接続 {@code Connect} 。
-     *
      */
     private static Optional<Connection> getConnection(@NonNull String url, Properties props) {
         try {
