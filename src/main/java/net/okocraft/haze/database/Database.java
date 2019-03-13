@@ -24,7 +24,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
@@ -32,6 +34,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+
+import java.util.Map;
+import java.util.HashMap;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
@@ -154,10 +159,11 @@ public class Database {
      * @param name 名前
      */
     public void addRecord(@NonNull UUID uuid, @NonNull String name) {
-        prepare("INSERT OR IGNORE INTO haze VALUES (?, ?)").ifPresent(statement -> {
+        prepare("INSERT OR IGNORE INTO haze (uuid, player) VALUES (?, ?)").ifPresent(statement -> {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
+                statement.addBatch();
 
                 // Execute this batch
                 threadPool.submit(new StatementRunner(statement));
@@ -168,14 +174,13 @@ public class Database {
     }
 
     public String readRecord(String uuid, String column) {
-        val statement = prepare("SELECT ? FROM haze WHERE uuid = ?");
+        val statement = prepare("SELECT " + column + " FROM haze WHERE uuid = ?");
 
-        val result = statement.map(stmt -> {
+        Optional<String> result = statement.map(stmt -> {
             try {
-                stmt.setString(1, column);
-                stmt.setString(2, uuid);
+                stmt.setString(1, uuid);
 
-                return stmt.executeQuery().getString("player");
+                return stmt.executeQuery().getString(column);
             } catch (SQLException exception) {
                 exception.printStackTrace();
 
@@ -199,23 +204,20 @@ public class Database {
      * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
     public boolean addColumn(String table, String column, String type) {
-        val statement = prepare("ALTER TABLE ? ADD ? ?");
+        val statement = prepare("ALTER TABLE " + table + " ADD " + column + " " + type + " NOT NULL DEFAULT '0'");
 
-        statement.ifPresent(stmt -> {
+        return statement.map(stmt -> {
             try {
-                stmt.setString(0, table);
-                stmt.setString(1, column);
-                stmt.setString(2, type);
+                stmt.addBatch();
+
+                // Execute this batch
+                threadPool.submit(new StatementRunner(stmt));
+                return true;
             } catch (SQLException exception) {
                 exception.printStackTrace();
+                return false;
             }
-        });
-
-        val result = statement.map(stmt -> {
-            return exec(stmt);
-        });
-
-        return result.isPresent();
+        }).orElse(false);
     }
 
     /**
@@ -224,29 +226,78 @@ public class Database {
      * @author akaregi
      * @since 1.0.0-SNAPSHOT
      *
-     * @param table  列を削除するテーブル。
-     * @param column 列の名前。
+     * @param table  削除する列を含むテーブル。
+     * @param column 削除する列の名前。
      *
      * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
     public boolean dropColumn(String table, String column) {
-        val statement = prepare("ALTER TABLE ? DROP COLUMN ?");
 
-        statement.ifPresent(stmt -> {
+        // 新しいテーブルの列
+        StringBuilder columnsBuilder = new StringBuilder();
+        getColumnMap(table).forEach((colName, colType) -> {
+            if(!column.equals(colName)) columnsBuilder.append(colName + " " + colType + ", ");
+        });
+        String columns = columnsBuilder.toString().replaceAll(", $", "");
+
+        // 新しいテーブルの列 (型なし)
+        StringBuilder colmunsBuilderExcludeType = new StringBuilder();
+        getColumnMap(table).forEach((colName, colType) -> {
+            if(!column.equals(colName)) colmunsBuilderExcludeType.append(colName + ", ");
+        });
+        String columnsExcludeType = colmunsBuilderExcludeType.toString().replaceAll(", $", "");
+        
+        Statement statement;
+
+        try {
+            statement = connection.get().createStatement();
+
+            statement.addBatch("BEGIN TRANSACTION");
+            statement.addBatch("ALTER TABLE " + table + " RENAME TO temp_" + table + "");
+            statement.addBatch("CREATE TABLE " + table + " (" + columns + ")");
+            statement.addBatch("INSERT INTO " + table + " (" + columnsExcludeType + ") SELECT " + columnsExcludeType + " FROM temp_" + table + "");
+            statement.addBatch("DROP TABLE temp_" + table + "");
+            statement.addBatch("COMMIT");
+
+            // Execute this batch
+            threadPool.submit(new StatementRunner(statement));
+            return true;
+        } catch (SQLException exception) {
+            exception.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * テーブルに含まれる列 {@code column} のリストを取得する。
+     *
+     * @author LazyGon
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @param table  調べるテーブル。
+     *
+     * @return テーブルに含まれるcolumnの名前と型のマップ
+     */
+    public Map<String, String> getColumnMap(String table) {
+        val statement = prepare("SELECT * FROM haze WHERE 0=1");
+
+        Map<String, String> columnMap = new HashMap<>();
+
+        return statement.map(stmt -> {
             try {
-                stmt.setString(0, table);
-                stmt.setString(1, column);
+                ResultSetMetaData rsmd = stmt.executeQuery().getMetaData();
 
+                for(int i = 1; i <= rsmd.getColumnCount(); i++){
+                    columnMap.put(rsmd.getColumnName(i),
+                    rsmd.getColumnTypeName(i));
+                }
+
+                return columnMap;
             } catch (SQLException exception) {
                 exception.printStackTrace();
+                return new HashMap<String, String>();
             }
-        });
-
-        val result = statement.map(stmt -> {
-            return exec(stmt);
-        });
-
-        return result.isPresent();
+        }).orElse(columnMap);
     }
 
     /**

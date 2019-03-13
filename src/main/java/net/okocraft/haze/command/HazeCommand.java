@@ -25,6 +25,7 @@ import lombok.val;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import net.okocraft.haze.Haze;
 import net.okocraft.haze.database.Database;
@@ -62,18 +63,21 @@ public class HazeCommand implements CommandExecutor {
 
         // hz write
         if (subCommand.equalsIgnoreCase("write")) {
+
+            if(!(sender instanceof Player)) return true;
             // NOTE: For testing
-            val uuid = UUID.randomUUID();
-            val name = uuid.toString().substring(0, 6);
+            val uuid = ((Player) sender).getUniqueId();
+            val name = ((Player) sender).getName();
 
             database.addRecord(uuid, name);
+            sender.sendMessage(":ADDED_PLAYER");
 
             return true;
         }
 
         // hz read <uuid> <column>
         if (subCommand.equalsIgnoreCase("read")) {
-            if (args.length <= 2) {
+            if (args.length < 3) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
@@ -82,6 +86,49 @@ public class HazeCommand implements CommandExecutor {
             val column = args[2];
 
             sender.sendMessage(database.readRecord(uuid, column));
+
+            return true;
+        }
+
+        // hz add <column>
+        if (subCommand.equalsIgnoreCase("add")) {
+            if (args.length < 2) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val column = args[1];
+
+            database.addColumn("haze", column, "int");
+
+            return true;
+        }
+
+        // hz drop <column>
+        if (subCommand.equalsIgnoreCase("drop")) {
+            if (args.length < 2) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val column = args[1];
+
+            database.dropColumn("haze", column);
+
+            return true;
+        }
+
+        // hz list
+        if (subCommand.equalsIgnoreCase("list")) {
+            if (args.length < 1) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            sender.sendMessage("列の名前 - 型");
+            database.getColumnMap("haze").forEach((colName, colType) -> {
+                sender.sendMessage(colName +" - "+ colType);
+            });
 
             return true;
         }
