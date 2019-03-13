@@ -40,6 +40,7 @@ import java.util.HashMap;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
+import net.okocraft.haze.command.HazeCommand;
 
 public class Database {
     /**
@@ -173,12 +174,43 @@ public class Database {
         });
     }
 
-    public String readRecord(String uuid, String column) {
-        val statement = prepare("SELECT " + column + " FROM haze WHERE uuid = ?");
+    /**
+     * レコードの内容をセットする。
+     *
+     * @since 1.0.0-SNAPSHOT
+     * @author LazyGon
+     *
+     * @param entry プレイヤー。uuidでもmcidでも可
+     * @param column 更新する列
+     * @param value 新しい値
+     */
+    public void setRecord(@NonNull String entry, @NonNull String column, String value) {
+        
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        prepare("UPDATE haze SET " + column + " = ? WHERE " + entryType + " = ?").ifPresent(statement -> {
+            try {
+                statement.setString(1, value);
+                statement.setString(2, entry);
+                statement.addBatch();
+
+                // Execute this batch
+                threadPool.submit(new StatementRunner(statement));
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public String readRecord(String entry, String column) {
+
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        val statement = prepare("SELECT " + column + " FROM haze WHERE " + entryType + " = ?");
 
         Optional<String> result = statement.map(stmt -> {
             try {
-                stmt.setString(1, uuid);
+                stmt.setString(1, entry);
 
                 return stmt.executeQuery().getString(column);
             } catch (SQLException exception) {

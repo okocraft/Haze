@@ -17,10 +17,10 @@
 
 package net.okocraft.haze.command;
 
-import java.util.UUID;
-
 import lombok.NonNull;
 import lombok.val;
+
+import javax.annotation.Nonnull;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -82,10 +82,10 @@ public class HazeCommand implements CommandExecutor {
                 return false;
             }
 
-            val uuid = args[1];
+            val entry = args[1];
             val column = args[2];
 
-            sender.sendMessage(database.readRecord(uuid, column));
+            sender.sendMessage(database.readRecord(entry, column));
 
             return true;
         }
@@ -108,6 +108,10 @@ public class HazeCommand implements CommandExecutor {
         if (subCommand.equalsIgnoreCase("drop")) {
             if (args.length < 2) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+            if (args[1].equalsIgnoreCase("uuid") || args[1].equalsIgnoreCase("player")){
+                sender.sendMessage(":UNREMOVABLE_COLUMN");
                 return false;
             }
 
@@ -133,7 +137,68 @@ public class HazeCommand implements CommandExecutor {
             return true;
         }
 
+        // hz set <column> <player> <value>
+        if (subCommand.equalsIgnoreCase("set")) {
+            if (args.length < 4) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val column = args[1];
+            val player = args[2];
+            val value = args[3];
+
+            database.setRecord(player, column, value);
+            
+
+            return true;
+        }
+
+        // hz give <column> <player> <value>
+        // hz take <column> <player> <value>
+        if (subCommand.equalsIgnoreCase("give") || subCommand.equalsIgnoreCase("give")) {
+            if (args.length < 4) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val column = args[1];
+            val player = args[2];
+
+            int inputValue;
+            int currentValue;
+
+            try{
+                inputValue = Integer.parseInt(args[3]);
+                currentValue = Integer.parseInt(database.readRecord(player, column));
+            } catch(NumberFormatException exception) {
+                exception.printStackTrace();
+                return false;
+            }
+
+            if(inputValue < 0) {
+                sender.sendMessage(":TOO_SMALL_NUMBER");
+                return false;
+            }
+
+            String calcedValue = String.valueOf(currentValue);
+
+            if(subCommand.equalsIgnoreCase("give"))
+                calcedValue = String.valueOf(currentValue + inputValue);
+
+            if(subCommand.equalsIgnoreCase("take"))
+                calcedValue = String.valueOf(currentValue - inputValue);
+
+            database.setRecord(player, column, calcedValue);
+
+            return true;
+        }
+
         sender.sendMessage(":PARAM_UNKNOWN");
         return true;
+    }
+
+    public static String checkEntryType(String entry){
+        return entry.matches("([a-z]|\\d){8}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){12}") ? "uuid" : "player";
     }
 }
