@@ -33,6 +33,10 @@ import net.okocraft.haze.database.Database;
  */
 public class Haze extends JavaPlugin {
 
+    /**
+     * ロガー
+     */
+    @Getter
     private static final Logger log = LoggerFactory.getLogger("Haze");
 
     /**
@@ -61,8 +65,12 @@ public class Haze extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        // Connect to database
-        database.connect(getDataFolder().getPath() + "/data.db");
+        // Connect to database. If can't, disable Haze.
+        if (database.connect(getDataFolder().getPath() + "/data.db")) {
+            setEnabled(false);
+
+            return;
+        }
 
         // Implementation info
         log.info("Installed in : " + getDataFolder().getPath());

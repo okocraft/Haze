@@ -20,8 +20,6 @@ package net.okocraft.haze.command;
 import lombok.NonNull;
 import lombok.val;
 
-import javax.annotation.Nonnull;
-
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -85,7 +83,7 @@ public class HazeCommand implements CommandExecutor {
             val entry = args[1];
             val column = args[2];
 
-            sender.sendMessage(database.readRecord(entry, column));
+            sender.sendMessage(database.get(entry, column));
 
             return true;
         }
@@ -148,8 +146,8 @@ public class HazeCommand implements CommandExecutor {
             val player = args[2];
             val value = args[3];
 
-            database.setRecord(player, column, value);
-            
+            database.set(player, column, value);
+
 
             return true;
         }
@@ -170,7 +168,7 @@ public class HazeCommand implements CommandExecutor {
 
             try{
                 inputValue = Integer.parseInt(args[3]);
-                currentValue = Integer.parseInt(database.readRecord(player, column));
+                currentValue = Integer.parseInt(database.get(player, column));
             } catch(NumberFormatException exception) {
                 exception.printStackTrace();
                 return false;
@@ -189,7 +187,7 @@ public class HazeCommand implements CommandExecutor {
             if(subCommand.equalsIgnoreCase("take"))
                 calcedValue = String.valueOf(currentValue - inputValue);
 
-            database.setRecord(player, column, calcedValue);
+            database.set(player, column, calcedValue);
 
             return true;
         }

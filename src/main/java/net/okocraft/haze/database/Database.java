@@ -33,13 +33,14 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-
 import java.util.Map;
 import java.util.HashMap;
+
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.val;
+
+import net.okocraft.haze.Haze;
 import net.okocraft.haze.command.HazeCommand;
 
 public class Database {
@@ -89,22 +90,18 @@ public class Database {
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
      */
-    public void connect(String url) {
+    public boolean connect(String url) {
+        val log = Haze.getLog();
+
         // Check if driver exists
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException exception) {
+            log.error("There's no JDBC driver.");
             exception.printStackTrace();
 
-            return;
+            return false;
         }
-
-        // Set DB URL
-        fileUrl = url;
-        DBUrl = "jdbc:sqlite:" + url;
-
-        // Connect to database
-        connection = getConnection(DBUrl, DBProps);
 
         // Check if the database file exists.
         // If not exist, attempt to create the file.
@@ -115,21 +112,40 @@ public class Database {
                 Files.createFile(file);
             }
         } catch (IOException exception) {
+            log.error("Failed to create database file.");
             exception.printStackTrace();
 
-            return;
+            return false;
+        }
+
+        // Set DB URL
+        fileUrl = url;
+        DBUrl = "jdbc:sqlite:" + url;
+
+        // Connect to database
+        connection = getConnection(DBUrl, DBProps);
+
+        if (!connection.isPresent()) {
+            log.error("Failed to connect the database.");
+
+            return false;
         }
 
         // Check if the table exists.
         // If not exist, attempt to create the table.
-        connection.ifPresent(connection -> {
+        return connection.map(connection -> {
             try {
                 connection.createStatement().execute(
                         "CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)");
+
+                return true;
             } catch (SQLException e) {
+                log.error("Failed to initialize database.");
                 e.printStackTrace();
+
+                return false;
             }
-        });
+        }).orElse(false);
     }
 
     /**
@@ -180,29 +196,30 @@ public class Database {
      * @since 1.0.0-SNAPSHOT
      * @author LazyGon
      *
-     * @param entry プレイヤー。uuidでもmcidでも可
+     * @param entry  プレイヤー。uuidでもmcidでも可
      * @param column 更新する列
-     * @param value 新しい値
+     * @param value  新しい値
      */
-    public void setRecord(@NonNull String entry, @NonNull String column, String value) {
-        
+    public void set(@NonNull String entry, @NonNull String column, String value) {
+
         String entryType = HazeCommand.checkEntryType(entry);
 
-        prepare("UPDATE haze SET " + column + " = ? WHERE " + entryType + " = ?").ifPresent(statement -> {
-            try {
-                statement.setString(1, value);
-                statement.setString(2, entry);
-                statement.addBatch();
+        prepare("UPDATE haze SET " + column + " = ? WHERE " + entryType + " = ?")
+                .ifPresent(statement -> {
+                    try {
+                        statement.setString(1, value);
+                        statement.setString(2, entry);
+                        statement.addBatch();
 
-                // Execute this batch
-                threadPool.submit(new StatementRunner(statement));
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        });
+                        // Execute this batch
+                        threadPool.submit(new StatementRunner(statement));
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                });
     }
 
-    public String readRecord(String entry, String column) {
+    public String get(String entry, String column) {
 
         String entryType = HazeCommand.checkEntryType(entry);
 
@@ -236,7 +253,8 @@ public class Database {
      * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
     public boolean addColumn(String table, String column, String type) {
-        val statement = prepare("ALTER TABLE " + table + " ADD " + column + " " + type + " NOT NULL DEFAULT '0'");
+        val statement = prepare(
+                "ALTER TABLE " + table + " ADD " + column + " " + type + " NOT NULL DEFAULT '0'");
 
         return statement.map(stmt -> {
             try {
@@ -268,17 +286,19 @@ public class Database {
         // 新しいテーブルの列
         StringBuilder columnsBuilder = new StringBuilder();
         getColumnMap(table).forEach((colName, colType) -> {
-            if(!column.equals(colName)) columnsBuilder.append(colName + " " + colType + ", ");
+            if (!column.equals(colName))
+                columnsBuilder.append(colName + " " + colType + ", ");
         });
         String columns = columnsBuilder.toString().replaceAll(", $", "");
 
         // 新しいテーブルの列 (型なし)
         StringBuilder colmunsBuilderExcludeType = new StringBuilder();
         getColumnMap(table).forEach((colName, colType) -> {
-            if(!column.equals(colName)) colmunsBuilderExcludeType.append(colName + ", ");
+            if (!column.equals(colName))
+                colmunsBuilderExcludeType.append(colName + ", ");
         });
         String columnsExcludeType = colmunsBuilderExcludeType.toString().replaceAll(", $", "");
-        
+
         Statement statement;
 
         try {
@@ -287,7 +307,8 @@ public class Database {
             statement.addBatch("BEGIN TRANSACTION");
             statement.addBatch("ALTER TABLE " + table + " RENAME TO temp_" + table + "");
             statement.addBatch("CREATE TABLE " + table + " (" + columns + ")");
-            statement.addBatch("INSERT INTO " + table + " (" + columnsExcludeType + ") SELECT " + columnsExcludeType + " FROM temp_" + table + "");
+            statement.addBatch("INSERT INTO " + table + " (" + columnsExcludeType + ") SELECT "
+                    + columnsExcludeType + " FROM temp_" + table + "");
             statement.addBatch("DROP TABLE temp_" + table + "");
             statement.addBatch("COMMIT");
 
@@ -306,7 +327,7 @@ public class Database {
      * @author LazyGon
      * @since 1.0.0-SNAPSHOT
      *
-     * @param table  調べるテーブル。
+     * @param table 調べるテーブル。
      *
      * @return テーブルに含まれるcolumnの名前と型のマップ
      */
@@ -319,9 +340,8 @@ public class Database {
             try {
                 ResultSetMetaData rsmd = stmt.executeQuery().getMetaData();
 
-                for(int i = 1; i <= rsmd.getColumnCount(); i++){
-                    columnMap.put(rsmd.getColumnName(i),
-                    rsmd.getColumnTypeName(i));
+                for (int i = 1; i <= rsmd.getColumnCount(); i++) {
+                    columnMap.put(rsmd.getColumnName(i), rsmd.getColumnTypeName(i));
                 }
 
                 return columnMap;
