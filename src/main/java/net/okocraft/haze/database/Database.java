@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import java.util.Map;
 import java.util.HashMap;
 
@@ -131,16 +132,28 @@ public class Database {
             return false;
         }
 
-        // Check if the table exists.
-        // If not exist, attempt to create the table.
+        // create table for haze plugin
+        return createTable(Haze.getInstance().getName());
+    }
+
+    /**
+     * テーブルが有るかどうか調べ、なければ作る。
+     * 
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     * 
+     * @param table 新たなテーブルの名前
+     * @return SQL文の実行に成功すればtrue 失敗すればfalse
+     */
+    public boolean createTable(String table){
         return connection.map(connection -> {
             try {
                 connection.createStatement().execute(
-                        "CREATE TABLE IF NOT EXISTS haze (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)");
+                        "CREATE TABLE IF NOT EXISTS " + table + " (uuid TEXT PRIMARY KEY NOT NULL, player TEXT NOT NULL)");
 
                 return true;
             } catch (SQLException e) {
-                log.error("Failed to initialize database.");
+                Haze.getLog().error("Failed to initialize database.");
                 e.printStackTrace();
 
                 return false;
@@ -172,11 +185,12 @@ public class Database {
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
      *
+     * @param table 操作するテーブル
      * @param uuid UUID
      * @param name 名前
      */
-    public void addRecord(@NonNull UUID uuid, @NonNull String name) {
-        prepare("INSERT OR IGNORE INTO haze (uuid, player) VALUES (?, ?)").ifPresent(statement -> {
+    public void addRecord(@NonNull String table, @NonNull UUID uuid, @NonNull String name) {
+        prepare("INSERT OR IGNORE INTO " + table + " (uuid, player) VALUES (?, ?)").ifPresent(statement -> {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
@@ -191,20 +205,21 @@ public class Database {
     }
 
     /**
-     * レコードの内容をセットする。
+     * {@code table}の{@code column}に値をセットする。
      *
      * @since 1.0.0-SNAPSHOT
      * @author LazyGon
      *
-     * @param entry  プレイヤー。uuidでもmcidでも可
+     * @param table  操作するテーブル
      * @param column 更新する列
+     * @param entry  プレイヤー。uuidでもmcidでも可
      * @param value  新しい値
      */
-    public void set(@NonNull String entry, @NonNull String column, String value) {
+    public void set(@NonNull String table, @NonNull String column, @NonNull String entry, String value) {
 
         String entryType = HazeCommand.checkEntryType(entry);
 
-        prepare("UPDATE haze SET " + column + " = ? WHERE " + entryType + " = ?")
+        prepare("UPDATE " + table + " SET " + column + " = ? WHERE " + entryType + " = ?")
                 .ifPresent(statement -> {
                     try {
                         statement.setString(1, value);
@@ -218,12 +233,22 @@ public class Database {
                     }
                 });
     }
-
-    public String get(String entry, String column) {
+    /**
+     * {@code table} で指定したテーブルの列 {@code column} の値を取得する。
+     * 
+     * @author akaregi
+     * @since 1.0.0-SNAPSHOT
+     * 
+     * @param table
+     * @param column
+     * @param entry
+     * @return 値
+     */
+    public String get(@NonNull String table, String column, String entry) {
 
         String entryType = HazeCommand.checkEntryType(entry);
 
-        val statement = prepare("SELECT " + column + " FROM haze WHERE " + entryType + " = ?");
+        val statement = prepare("SELECT " + column + " FROM " + table + " WHERE " + entryType + " = ?");
 
         Optional<String> result = statement.map(stmt -> {
             try {
@@ -271,7 +296,7 @@ public class Database {
     }
 
     /**
-     * テーブルから列 {@code column} を削除する。
+     * テーブル {@code table} から列 {@code column} を削除する。
      *
      * @author akaregi
      * @since 1.0.0-SNAPSHOT
@@ -332,7 +357,7 @@ public class Database {
      * @return テーブルに含まれるcolumnの名前と型のマップ
      */
     public Map<String, String> getColumnMap(String table) {
-        val statement = prepare("SELECT * FROM haze WHERE 0=1");
+        val statement = prepare("SELECT * FROM " + table + " WHERE 0=1");
 
         Map<String, String> columnMap = new HashMap<>();
 
@@ -350,6 +375,33 @@ public class Database {
                 return new HashMap<String, String>();
             }
         }).orElse(columnMap);
+    }
+
+    /**
+     * すべてのテーブル名前と型のマップを取得する。
+     *
+     * @author LazyGon
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @return テーブル名と型のマップ
+     */
+    public Map<String, String> getTableMap() {
+
+        Map<String, String> tableMap = new HashMap<>();
+
+        return connection.map(con -> {
+            try {
+                ResultSet resultSet = con.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
+
+                while(resultSet.next())
+                    tableMap.put(resultSet.getString("TABLE_NAME"), resultSet.getString("TABLE_TYPE"));
+
+                return tableMap;
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+                return new HashMap<String, String>();
+            }
+        }).orElse(tableMap);
     }
 
     /**
