@@ -205,6 +205,36 @@ public class Database {
     }
 
     /**
+     * テーブルのデータベースに名前が記録されているか調べる。
+     *
+     * @since 1.0.0-SNAPSHOT
+     * @author akaregi
+     *
+     * @param table 操作するテーブル
+     * @param uuid UUID
+     * @param name 名前
+     */
+    public boolean hasRecord(@NonNull String table, @NonNull String entry) {
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        val statement = prepare("SELECT " + entryType + " FROM " + table + " WHERE " + entryType + " = ?");
+
+        Optional<String> result = statement.map(stmt -> {
+            try {
+                stmt.setString(1, entry);
+
+                return stmt.executeQuery().getString(entry);
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+
+                return "";
+            }
+        });
+
+        return !result.orElse("").equals("");
+    }
+
+    /**
      * {@code table}の{@code column}に値をセットする。
      *
      * @since 1.0.0-SNAPSHOT
