@@ -54,6 +54,7 @@ public class Haze extends JavaPlugin {
     /**
      * データベース。
      */
+    @Getter
     private final Database database;
 
     public Haze() {
