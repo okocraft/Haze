@@ -435,6 +435,33 @@ public class Database {
     }
 
     /**
+     * 登録されているプレイヤーの名前とUUIDのマップを取得する。
+     *
+     * @author LazyGon
+     * @since 1.0.0-SNAPSHOT
+     *
+     * @return プレイヤー名とそのUUIDのマップ
+     */
+    public Map<String, String> getPlayersMap(String table) {
+
+        Map<String, String> playersMap = new HashMap<>();
+
+        val statement = prepare("SELECT uuid, player FROM " + table);
+
+        statement.ifPresent(stmt -> {
+            try {
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next())
+                    playersMap.put(rs.getString("uuid"), rs.getString("player"));
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
+
+        return playersMap;
+    }
+
+    /**
      * スレッド上で SQL を実行する。
      *
      * @author akaregi
