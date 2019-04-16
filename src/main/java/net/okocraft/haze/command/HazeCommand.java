@@ -54,140 +54,177 @@ public class HazeCommand implements CommandExecutor {
 
         // hz version
         if (subCommand.equalsIgnoreCase("version")) {
-             sender.sendMessage(Haze.getInstance().getVersion());
+            sender.sendMessage(Haze.getInstance().getVersion());
 
-             return true;
+            return true;
         }
 
-        // hz write
+        // hz write <table>
+        // tableにプレイヤーのレコードを追加する
         if (subCommand.equalsIgnoreCase("write")) {
 
-            if(!(sender instanceof Player)) return true;
-            // NOTE: For testing
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(":INVALID_SENDER");
+                return true;
+            }
+
+            if (args.length < 2) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val table = args[1];
             val uuid = ((Player) sender).getUniqueId();
             val name = ((Player) sender).getName();
 
-            database.addRecord(uuid, name);
+            database.addRecord(table, uuid, name);
             sender.sendMessage(":ADDED_PLAYER");
 
             return true;
         }
 
-        // hz read <uuid> <column>
+        // hz get <table> <uuid> <column>
         if (subCommand.equalsIgnoreCase("read")) {
+            if (args.length < 4) {
+                sender.sendMessage(":PARAM_INSUFFICIENT");
+                return false;
+            }
+
+            val table = args[1];
+            val entry = args[2];
+            val column = args[3];
+
+            sender.sendMessage(database.get(table, column, entry));
+
+            return true;
+        }
+
+        // hz addcolumn <table> <column> [type]
+        if (subCommand.equalsIgnoreCase("addcolumn")) {
             if (args.length < 3) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
 
-            val entry = args[1];
+            val table = args[1];
             val column = args[2];
 
-            sender.sendMessage(database.get(entry, column));
+            String type;
+
+            if (args.length >= 4) {
+                type = args[3];
+            } else {
+                type = "int";
+            }
+
+            database.addColumn(table, column, type);
 
             return true;
         }
 
-        // hz add <column>
-        if (subCommand.equalsIgnoreCase("add")) {
-            if (args.length < 2) {
+        // hz dropcolumn <table> <column>
+        if (subCommand.equalsIgnoreCase("dropcolumn")) {
+            if (args.length < 3) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
-
-            val column = args[1];
-
-            database.addColumn("haze", column, "int");
-
-            return true;
-        }
-
-        // hz drop <column>
-        if (subCommand.equalsIgnoreCase("drop")) {
-            if (args.length < 2) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
-            if (args[1].equalsIgnoreCase("uuid") || args[1].equalsIgnoreCase("player")){
+            if (args[2].equalsIgnoreCase("uuid") || args[2].equalsIgnoreCase("player")) {
                 sender.sendMessage(":UNREMOVABLE_COLUMN");
                 return false;
             }
 
-            val column = args[1];
+            val table = args[1];
+            val column = args[2];
 
-            database.dropColumn("haze", column);
+            if (database.getColumnMap(table).keySet().contains(column)) {
+                sender.sendMessage(":NO_COLUMN_FOUND");
+                return false;
+            }
+
+            database.dropColumn(table, column);
 
             return true;
         }
 
-        // hz list
+        // hz list table
+        // hz list <table> column
         if (subCommand.equalsIgnoreCase("list")) {
-            if (args.length < 1) {
+            if (args.length < 2) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
 
-            sender.sendMessage("列の名前 - 型");
-            database.getColumnMap("haze").forEach((colName, colType) -> {
-                sender.sendMessage(colName +" - "+ colType);
-            });
+            if (args[1].equalsIgnoreCase("column")) {
+
+                sender.sendMessage("列の名前 - 型");
+                database.getColumnMap("haze").forEach((colName, colType) -> {
+                    sender.sendMessage(colName + " - " + colType);
+                });
+            } else if (args[1].equalsIgnoreCase("table")) {
+                sender.sendMessage("テーブルの名前 - 型");
+
+                database.getTableMap().forEach((tableName, tableType) -> {
+                    sender.sendMessage(tableName + " - " + tableType);
+                });
+            }
 
             return true;
         }
 
-        // hz set <column> <player> <value>
+        // hz set <table> <column> <player> <value>
         if (subCommand.equalsIgnoreCase("set")) {
-            if (args.length < 4) {
+            if (args.length < 5) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
 
-            val column = args[1];
-            val player = args[2];
-            val value = args[3];
+            val table = args[1];
+            val column = args[2];
+            val player = args[3];
+            val value = args[4];
 
-            database.set(player, column, value);
-
+            database.set(table, column, player, value);
 
             return true;
         }
 
-        // hz give <column> <player> <value>
-        // hz take <column> <player> <value>
+        // hz give <table> <column> <player> <value>
+        // hz take <table> <column> <player> <value>
         if (subCommand.equalsIgnoreCase("give") || subCommand.equalsIgnoreCase("give")) {
-            if (args.length < 4) {
+            if (args.length < 5) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
                 return false;
             }
 
-            val column = args[1];
-            val player = args[2];
+            val table = args[1];
+            val column = args[2];
+            val player = args[3];
 
             int inputValue;
             int currentValue;
 
-            try{
-                inputValue = Integer.parseInt(args[3]);
-                currentValue = Integer.parseInt(database.get(player, column));
-            } catch(NumberFormatException exception) {
+            try {
+                inputValue = Integer.parseInt(args[4]);
+                currentValue = Integer.parseInt(database.get(table, column, player));
+            } catch (NumberFormatException exception) {
                 exception.printStackTrace();
                 return false;
             }
 
-            if(inputValue < 0) {
+            if (inputValue < 0) {
                 sender.sendMessage(":TOO_SMALL_NUMBER");
                 return false;
             }
 
             String calcedValue = String.valueOf(currentValue);
 
-            if(subCommand.equalsIgnoreCase("give"))
+            if (subCommand.equalsIgnoreCase("give"))
                 calcedValue = String.valueOf(currentValue + inputValue);
 
-            if(subCommand.equalsIgnoreCase("take"))
+            if (subCommand.equalsIgnoreCase("take"))
                 calcedValue = String.valueOf(currentValue - inputValue);
 
-            database.set(player, column, calcedValue);
+            database.set(table, column, player, calcedValue);
 
             return true;
         }
@@ -196,7 +233,8 @@ public class HazeCommand implements CommandExecutor {
         return true;
     }
 
-    public static String checkEntryType(String entry){
-        return entry.matches("([a-z]|\\d){8}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){12}") ? "uuid" : "player";
+    public static String checkEntryType(String entry) {
+        return entry.matches("([a-z]|\\d){8}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){12}") ? "uuid"
+                : "player";
     }
 }
