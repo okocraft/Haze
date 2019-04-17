@@ -36,6 +36,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.okocraft.haze.command.HazeCommand;
+import net.okocraft.haze.command.HazeTabCompleter;
 import net.okocraft.haze.database.Database;
 
 /**
@@ -88,6 +89,7 @@ public class Haze extends JavaPlugin {
 
         // Register command /haze
         getCommand("haze").setExecutor(new HazeCommand(database));
+        getCommand("haze").setTabCompleter(new HazeTabCompleter(database));
 
         // GO GO GO
         log.info("Haze has been enabled!");

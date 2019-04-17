@@ -17,7 +17,7 @@ public class HazeTabCompleter implements TabCompleter {
 
     private Database database;
 
-    HazeTabCompleter (Database database){
+    public HazeTabCompleter (Database database){
         this.database = database;
     }
 
