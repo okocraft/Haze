@@ -94,17 +94,23 @@ public class Database {
      * @author akaregi
      */
     public boolean connect(String url) {
-        val log = Haze.getLog();
+        val log = Haze.getInstance().getLog();
 
         // Check if driver exists
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException exception) {
-            log.error("There's no JDBC driver.");
+            //log.error("There's no JDBC driver.");
+            log.severe("There's no JDBC driver.");
             exception.printStackTrace();
 
             return false;
         }
+
+        
+        // Set DB URL
+        fileUrl = url;
+        DBUrl = "jdbc:sqlite:" + url;
 
         // Check if the database file exists.
         // If not exist, attempt to create the file.
@@ -115,21 +121,19 @@ public class Database {
                 Files.createFile(file);
             }
         } catch (IOException exception) {
-            log.error("Failed to create database file.");
+            //log.error("Failed to create database file.");
+            log.severe("Failed to create database file.");
             exception.printStackTrace();
 
             return false;
         }
 
-        // Set DB URL
-        fileUrl = url;
-        DBUrl = "jdbc:sqlite:" + url;
-
         // Connect to database
         connection = getConnection(DBUrl, DBProps);
 
         if (!connection.isPresent()) {
-            log.error("Failed to connect the database.");
+            //log.error("Failed to connect the database.");
+            log.severe("Failed to connect the database.");
 
             return false;
         }
@@ -155,7 +159,8 @@ public class Database {
 
                 return true;
             } catch (SQLException e) {
-                Haze.getLog().error("Failed to initialize database.");
+                //Haze.getLog().error("Failed to initialize database.");
+                Haze.getInstance().getLog().severe("Failed to initialize database.");
                 e.printStackTrace();
 
                 return false;
@@ -330,8 +335,9 @@ public class Database {
         Optional<String> result = statement.map(stmt -> {
             try {
                 stmt.setString(1, entry);
-
-                return stmt.executeQuery().getString(column);
+                ResultSet rs = stmt.executeQuery();
+                rs.next();
+                return rs.getString(column);
             } catch (SQLException exception) {
                 exception.printStackTrace();
 

@@ -15,12 +15,24 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+/**
+ * todo
+ * 
+ * writeコマンドのテーブル存在判定。大抵のメソッドでレコード追加しようとした時の追加先の存在判定が皆無。死。(優先度高)
+ * タブコンプリーター実装(優先高)
+ * メッセージの充実(優先度中)
+ * 
+ */
+
 package net.okocraft.haze;
 
 import lombok.Getter;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
+
+// NoClassDefFoundException 発生。
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -37,7 +49,7 @@ public class Haze extends JavaPlugin {
      * ロガー
      */
     @Getter
-    private static final Logger log = LoggerFactory.getLogger("Haze");
+    private final Logger log = getLogger();
 
     /**
      * プラグイン Haze のインスタンス。
@@ -65,9 +77,8 @@ public class Haze extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-
         // Connect to database. If can't, disable Haze.
-        if (database.connect(getDataFolder().getPath() + "/data.db")) {
+        if (!database.connect(getDataFolder().getPath() + "/data.db")) {
             setEnabled(false);
 
             return;
