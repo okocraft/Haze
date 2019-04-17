@@ -35,7 +35,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import lombok.Getter;
 import lombok.NonNull;
@@ -92,17 +94,23 @@ public class Database {
      * @author akaregi
      */
     public boolean connect(String url) {
-        val log = Haze.getLog();
+        val log = Haze.getInstance().getLog();
 
         // Check if driver exists
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException exception) {
-            log.error("There's no JDBC driver.");
+            //log.error("There's no JDBC driver.");
+            log.severe("There's no JDBC driver.");
             exception.printStackTrace();
 
             return false;
         }
+
+        
+        // Set DB URL
+        fileUrl = url;
+        DBUrl = "jdbc:sqlite:" + url;
 
         // Check if the database file exists.
         // If not exist, attempt to create the file.
@@ -113,21 +121,19 @@ public class Database {
                 Files.createFile(file);
             }
         } catch (IOException exception) {
-            log.error("Failed to create database file.");
+            //log.error("Failed to create database file.");
+            log.severe("Failed to create database file.");
             exception.printStackTrace();
 
             return false;
         }
 
-        // Set DB URL
-        fileUrl = url;
-        DBUrl = "jdbc:sqlite:" + url;
-
         // Connect to database
         connection = getConnection(DBUrl, DBProps);
 
         if (!connection.isPresent()) {
-            log.error("Failed to connect the database.");
+            //log.error("Failed to connect the database.");
+            log.severe("Failed to connect the database.");
 
             return false;
         }
@@ -153,12 +159,31 @@ public class Database {
 
                 return true;
             } catch (SQLException e) {
-                Haze.getLog().error("Failed to initialize database.");
+                //Haze.getLog().error("Failed to initialize database.");
+                Haze.getInstance().getLog().severe("Failed to initialize database.");
                 e.printStackTrace();
 
                 return false;
             }
         }).orElse(false);
+    }
+
+    /**
+     * テーブルを消す。
+     * 
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     * 
+     * @param table 削除するテーブルの名前
+     */
+    public void removeTable(String table){
+        connection.ifPresent(connection -> {
+            try {
+                connection.createStatement().execute("DROP TABLE IF EXISTS " + table);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     /**
@@ -194,6 +219,32 @@ public class Database {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
+                statement.addBatch();
+
+                // Execute this batch
+                threadPool.submit(new StatementRunner(statement));
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
+     * テーブルからレコードを削除する。
+     *
+     * @since 1.1.0-SNAPSHOT
+     * @author LazyGon
+     *
+     * @param table 操作するテーブル
+     * @param entry プレイヤー
+     */
+    public void removeRecord(@NonNull String table, @NonNull String entry) {
+
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        prepare("DELETE FROM " + table + "WHERE " + entryType + " = " + entry).ifPresent(statement -> {
+            try {
+                statement.setString(1, entry);
                 statement.addBatch();
 
                 // Execute this batch
@@ -263,6 +314,7 @@ public class Database {
                     }
                 });
     }
+
     /**
      * {@code table} で指定したテーブルの列 {@code column} の値を取得する。
      * 
@@ -283,8 +335,9 @@ public class Database {
         Optional<String> result = statement.map(stmt -> {
             try {
                 stmt.setString(1, entry);
-
-                return stmt.executeQuery().getString(column);
+                ResultSet rs = stmt.executeQuery();
+                rs.next();
+                return rs.getString(column);
             } catch (SQLException exception) {
                 exception.printStackTrace();
 
@@ -411,7 +464,7 @@ public class Database {
      * すべてのテーブル名前と型のマップを取得する。
      *
      * @author LazyGon
-     * @since 1.0.0-SNAPSHOT
+     * @since 1.1.0-SNAPSHOT
      *
      * @return テーブル名と型のマップ
      */
@@ -438,7 +491,7 @@ public class Database {
      * 登録されているプレイヤーの名前とUUIDのマップを取得する。
      *
      * @author LazyGon
-     * @since 1.0.0-SNAPSHOT
+     * @since 1.1.0-SNAPSHOT
      *
      * @return プレイヤー名とそのUUIDのマップ
      */
@@ -459,6 +512,72 @@ public class Database {
         });
 
         return playersMap;
+    }
+
+    /**
+     * 指定したテーブルの、指定したプレイヤーの全カラムのデータをリストで取得する
+     *
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     *
+     * @param table 調べるテーブル。
+     * @param player 調べるプレイヤー。uuidでもmcidでも可。
+     *
+     * @return データのリスト
+     */
+    public List<Object> getAllData(String table, String player) {
+
+        String entryType = HazeCommand.checkEntryType(player);
+
+        val statement = prepare("SELECT * FROM " + table + " WHERE " + entryType + " = ?");
+
+        List<Object> allDataList = new ArrayList<>();
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(1, player);
+
+                ResultSet rs = stmt.executeQuery();
+                ResultSetMetaData rsmd = rs.getMetaData();
+
+                for (int i = 1; i <= rsmd.getColumnCount(); i++){
+                    allDataList.add(rs.getString(rsmd.getColumnName(i)));
+                    if (rs.wasNull())
+                        allDataList.remove(allDataList.size() - 1);
+                }
+
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
+
+        return allDataList;
+    }
+
+    /**
+     * {@code table} の {@code column} の {@code entry} の行をNULLにする。(消す)
+     * 
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     * 
+     * @param table
+     * @param column
+     * @param entry
+     */
+    public void removeValue(@NonNull String table, String column, String entry) {
+
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        val statement = prepare("UPDATE " + table + " SET " + column + " = NULL WHERE " + entryType + " = ?");
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(1, entry);
+                stmt.executeUpdate();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
     }
 
     /**

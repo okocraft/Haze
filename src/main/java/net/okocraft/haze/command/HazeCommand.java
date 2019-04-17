@@ -91,8 +91,8 @@ public class HazeCommand implements CommandExecutor {
             }
 
             val table = args[1];
-            val entry = args[2];
-            val column = args[3];
+            val column = args[2];
+            val entry = args[3];
 
             sender.sendMessage(database.get(table, column, entry));
 
@@ -147,7 +147,7 @@ public class HazeCommand implements CommandExecutor {
         }
 
         // hz list table
-        // hz list <table> column
+        // hz list column <table>
         if (subCommand.equalsIgnoreCase("list")) {
             if (args.length < 2) {
                 sender.sendMessage(":PARAM_INSUFFICIENT");
@@ -156,8 +156,13 @@ public class HazeCommand implements CommandExecutor {
 
             if (args[1].equalsIgnoreCase("column")) {
 
+                if (args.length < 3) {
+                    sender.sendMessage(":PARAM_INSUFFICIENT");
+                    return false;
+                }
+
                 sender.sendMessage("列の名前 - 型");
-                database.getColumnMap("haze").forEach((colName, colType) -> {
+                database.getColumnMap(args[2]).forEach((colName, colType) -> {
                     sender.sendMessage(colName + " - " + colType);
                 });
             } else if (args[1].equalsIgnoreCase("table")) {
