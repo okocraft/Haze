@@ -35,7 +35,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import lombok.Getter;
 import lombok.NonNull;
@@ -162,6 +164,24 @@ public class Database {
     }
 
     /**
+     * テーブルを消す。
+     * 
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     * 
+     * @param table 削除するテーブルの名前
+     */
+    public void removeTable(String table){
+        connection.ifPresent(connection -> {
+            try {
+                connection.createStatement().execute("DROP TABLE IF EXISTS " + table);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
      * データベースへの接続を切断する。
      *
      * @since 1.0.0-SNAPSHOT
@@ -194,6 +214,32 @@ public class Database {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
+                statement.addBatch();
+
+                // Execute this batch
+                threadPool.submit(new StatementRunner(statement));
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
+     * テーブルからレコードを削除する。
+     *
+     * @since 1.1.0-SNAPSHOT
+     * @author LazyGon
+     *
+     * @param table 操作するテーブル
+     * @param entry プレイヤー
+     */
+    public void removeRecord(@NonNull String table, @NonNull String entry) {
+
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        prepare("DELETE FROM " + table + "WHERE " + entryType + " = " + entry).ifPresent(statement -> {
+            try {
+                statement.setString(1, entry);
                 statement.addBatch();
 
                 // Execute this batch
@@ -263,6 +309,7 @@ public class Database {
                     }
                 });
     }
+
     /**
      * {@code table} で指定したテーブルの列 {@code column} の値を取得する。
      * 
@@ -411,7 +458,7 @@ public class Database {
      * すべてのテーブル名前と型のマップを取得する。
      *
      * @author LazyGon
-     * @since 1.0.0-SNAPSHOT
+     * @since 1.1.0-SNAPSHOT
      *
      * @return テーブル名と型のマップ
      */
@@ -438,7 +485,7 @@ public class Database {
      * 登録されているプレイヤーの名前とUUIDのマップを取得する。
      *
      * @author LazyGon
-     * @since 1.0.0-SNAPSHOT
+     * @since 1.1.0-SNAPSHOT
      *
      * @return プレイヤー名とそのUUIDのマップ
      */
@@ -459,6 +506,72 @@ public class Database {
         });
 
         return playersMap;
+    }
+
+    /**
+     * 指定したテーブルの、指定したプレイヤーの全カラムのデータをリストで取得する
+     *
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     *
+     * @param table 調べるテーブル。
+     * @param player 調べるプレイヤー。uuidでもmcidでも可。
+     *
+     * @return データのリスト
+     */
+    public List<Object> getAllData(String table, String player) {
+
+        String entryType = HazeCommand.checkEntryType(player);
+
+        val statement = prepare("SELECT * FROM " + table + " WHERE " + entryType + " = ?");
+
+        List<Object> allDataList = new ArrayList<>();
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(1, player);
+
+                ResultSet rs = stmt.executeQuery();
+                ResultSetMetaData rsmd = rs.getMetaData();
+
+                for (int i = 1; i <= rsmd.getColumnCount(); i++){
+                    allDataList.add(rs.getString(rsmd.getColumnName(i)));
+                    if (rs.wasNull())
+                        allDataList.remove(allDataList.size() - 1);
+                }
+
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
+
+        return allDataList;
+    }
+
+    /**
+     * {@code table} の {@code column} の {@code entry} の行をNULLにする。(消す)
+     * 
+     * @author LazyGon
+     * @since 1.1.0-SNAPSHOT
+     * 
+     * @param table
+     * @param column
+     * @param entry
+     */
+    public void removeValue(@NonNull String table, String column, String entry) {
+
+        String entryType = HazeCommand.checkEntryType(entry);
+
+        val statement = prepare("UPDATE " + table + " SET " + column + " = NULL WHERE " + entryType + " = ?");
+
+        statement.ifPresent(stmt -> {
+            try {
+                stmt.setString(1, entry);
+                stmt.executeUpdate();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
+        });
     }
 
     /**
