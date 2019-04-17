@@ -274,9 +274,10 @@ public class Database {
             try {
                 stmt.setString(1, entry);
 
-                return stmt.executeQuery().getString(entry);
+                return stmt.executeQuery().getString(entryType);
             } catch (SQLException exception) {
-                exception.printStackTrace();
+                if (!exception.getMessage().equals("ResultSet closed"))
+                    exception.printStackTrace();
 
                 return "";
             }

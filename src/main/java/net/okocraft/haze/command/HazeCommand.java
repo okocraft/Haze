@@ -81,7 +81,7 @@ public class HazeCommand implements CommandExecutor {
             return true;
         }
 
-        // hz get <table> <uuid> <column>
+        // hz get <table> <column> <uuid|mcid>
         if (subCommand.equalsIgnoreCase("get")) {
             if (args.length < 4)
                 return errorOccured(sender, ":PARAM_INSUFFICIENT");
