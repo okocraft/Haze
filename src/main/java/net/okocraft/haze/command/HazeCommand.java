@@ -275,7 +275,7 @@ public class HazeCommand implements CommandExecutor {
      * @return 権限がないときにfalse あればtrue
      */
     public static boolean hasPermission(CommandSender sender, String permission) {
-        if (sender.hasPermission(permission))
+        if (!sender.hasPermission(permission))
             return errorOccured(sender, ":PERM_INSUFFICIENT_" + permission);
         return true;
     }
