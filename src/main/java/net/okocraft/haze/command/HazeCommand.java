@@ -38,16 +38,12 @@ public class HazeCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         // insufficient permission
-        if (!sender.hasPermission("haze.admin")) {
-            sender.sendMessage(":PERM_INSUFFICIENT");
-            return true;
-        }
+        if (!hasPermission(sender, "haze.admin"))
+            return false;
 
         // only /hz
-        if (args.length == 0) {
-            sender.sendMessage(":PARAM_INSUFFICIENT");
-            return false;
-        }
+        if (args.length == 0)
+            return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
         @NonNull
         val subCommand = args[0];
@@ -63,19 +59,21 @@ public class HazeCommand implements CommandExecutor {
         // tableにプレイヤーのレコードを追加する
         if (subCommand.equalsIgnoreCase("write")) {
 
-            if (!(sender instanceof Player)) {
-                sender.sendMessage(":INVALID_SENDER");
-                return true;
-            }
+            if (!(sender instanceof Player))
+                return errorOccured(sender, ":INVALID_SENDER");
 
-            if (args.length < 2) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+            if (args.length < 2)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val uuid = ((Player) sender).getUniqueId();
             val name = ((Player) sender).getName();
+
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (database.hasRecord(table, name))
+                return errorOccured(sender, ":RECORD_EXIST");
 
             database.addRecord(table, uuid, name);
             sender.sendMessage(":ADDED_PLAYER");
@@ -83,16 +81,23 @@ public class HazeCommand implements CommandExecutor {
             return true;
         }
 
-        // hz get <table> <uuid> <column>
-        if (subCommand.equalsIgnoreCase("read")) {
-            if (args.length < 4) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+        // hz get <table> <column> <uuid|mcid>
+        if (subCommand.equalsIgnoreCase("get")) {
+            if (args.length < 4)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val column = args[2];
             val entry = args[3];
+
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (!database.getColumnMap(table).keySet().contains(column))
+                return errorOccured(sender, ":COLUMN_NOT_EXIST");
+
+            if (!database.hasRecord(table, entry))
+                return errorOccured(sender, ":RECORD_NOT_EXIST");
 
             sender.sendMessage(database.get(table, column, entry));
 
@@ -101,10 +106,8 @@ public class HazeCommand implements CommandExecutor {
 
         // hz addcolumn <table> <column> [type]
         if (subCommand.equalsIgnoreCase("addcolumn")) {
-            if (args.length < 3) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+            if (args.length < 3)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val column = args[2];
@@ -117,6 +120,12 @@ public class HazeCommand implements CommandExecutor {
                 type = "int";
             }
 
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (database.getColumnMap(table).keySet().contains(column))
+                return errorOccured(sender, ":COLUMN_EXIST");
+
             database.addColumn(table, column, type);
 
             return true;
@@ -124,22 +133,20 @@ public class HazeCommand implements CommandExecutor {
 
         // hz dropcolumn <table> <column>
         if (subCommand.equalsIgnoreCase("dropcolumn")) {
-            if (args.length < 3) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
-            if (args[2].equalsIgnoreCase("uuid") || args[2].equalsIgnoreCase("player")) {
-                sender.sendMessage(":UNREMOVABLE_COLUMN");
-                return false;
-            }
+            if (args.length < 3)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val column = args[2];
 
-            if (database.getColumnMap(table).keySet().contains(column)) {
-                sender.sendMessage(":NO_COLUMN_FOUND");
-                return false;
-            }
+            if (args[2].equalsIgnoreCase("uuid") || args[2].equalsIgnoreCase("player"))
+                return errorOccured(sender, ":UNREMOVABLE_COLUMN");
+
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (!database.getColumnMap(table).keySet().contains(column))
+                return errorOccured(sender, ":COLUMN_NOT_EXIST");
 
             database.dropColumn(table, column);
 
@@ -149,20 +156,21 @@ public class HazeCommand implements CommandExecutor {
         // hz list table
         // hz list column <table>
         if (subCommand.equalsIgnoreCase("list")) {
-            if (args.length < 2) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+            if (args.length < 2)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             if (args[1].equalsIgnoreCase("column")) {
 
-                if (args.length < 3) {
-                    sender.sendMessage(":PARAM_INSUFFICIENT");
-                    return false;
-                }
+                if (args.length < 3)
+                    return errorOccured(sender, ":PARAM_INSUFFICIENT");
+
+                val table = args[2];
+
+                if (!database.getTableMap().keySet().contains(table))
+                    return errorOccured(sender, ":NO_TABLE_EXIST");
 
                 sender.sendMessage("列の名前 - 型");
-                database.getColumnMap(args[2]).forEach((colName, colType) -> {
+                database.getColumnMap(table).forEach((colName, colType) -> {
                     sender.sendMessage(colName + " - " + colType);
                 });
             } else if (args[1].equalsIgnoreCase("table")) {
@@ -178,15 +186,22 @@ public class HazeCommand implements CommandExecutor {
 
         // hz set <table> <column> <player> <value>
         if (subCommand.equalsIgnoreCase("set")) {
-            if (args.length < 5) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+            if (args.length < 5)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val column = args[2];
             val player = args[3];
             val value = args[4];
+
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (!database.getColumnMap(table).keySet().contains(column))
+                return errorOccured(sender, ":COLUMN_NOT_EXIST");
+
+            if (!database.hasRecord(table, player))
+                return errorOccured(sender, ":RECORD_NOT_EXIST");
 
             database.set(table, column, player, value);
 
@@ -196,14 +211,26 @@ public class HazeCommand implements CommandExecutor {
         // hz give <table> <column> <player> <value>
         // hz take <table> <column> <player> <value>
         if (subCommand.equalsIgnoreCase("give") || subCommand.equalsIgnoreCase("give")) {
-            if (args.length < 5) {
-                sender.sendMessage(":PARAM_INSUFFICIENT");
-                return false;
-            }
+            if (args.length < 5)
+                return errorOccured(sender, ":PARAM_INSUFFICIENT");
 
             val table = args[1];
             val column = args[2];
             val player = args[3];
+
+            if (!database.getTableMap().keySet().contains(table))
+                return errorOccured(sender, ":NO_TABLE_EXIST");
+
+            if (!database.getColumnMap(table).keySet().contains(column))
+                return errorOccured(sender, ":COLUMN_NOT_EXIST");
+
+            if (!database.hasRecord(table, player))
+                return errorOccured(sender, ":RECORD_NOT_EXIST");
+
+            if (!database.getColumnMap(table).get(column).equals("INTEGER")) {
+                sender.sendMessage(":INVALID_COLUMN_TYPE");
+                return false;
+            }
 
             int inputValue;
             int currentValue;
@@ -212,14 +239,11 @@ public class HazeCommand implements CommandExecutor {
                 inputValue = Integer.parseInt(args[4]);
                 currentValue = Integer.parseInt(database.get(table, column, player));
             } catch (NumberFormatException exception) {
-                exception.printStackTrace();
-                return false;
+                return errorOccured(sender, ":INVALID_PARAM");
             }
 
-            if (inputValue < 0) {
-                sender.sendMessage(":TOO_SMALL_NUMBER");
-                return false;
-            }
+            if (inputValue < 0) 
+                return errorOccured(sender, ":INVALID_PARAM_INTEGER");
 
             String calcedValue = String.valueOf(currentValue);
 
@@ -241,5 +265,30 @@ public class HazeCommand implements CommandExecutor {
     public static String checkEntryType(String entry) {
         return entry.matches("([a-z]|\\d){8}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){4}-([a-z]|\\d){12}") ? "uuid"
                 : "player";
+    }
+
+    /**
+     * 権限がないときにメッセージを送りつつfalseを返す。
+     * 
+     * @param sender
+     * @param permission
+     * @return 権限がないときにfalse あればtrue
+     */
+    public static boolean hasPermission(CommandSender sender, String permission) {
+        if (!sender.hasPermission(permission))
+            return errorOccured(sender, ":PERM_INSUFFICIENT_" + permission);
+        return true;
+    }
+
+    /**
+     * エラーが発生したときにメッセージを送りつつfalseを返す。
+     * 
+     * @param sender
+     * @param errorMessage
+     * @return false
+     */
+    public static boolean errorOccured(CommandSender sender, String errorMessage) {
+        sender.sendMessage(errorMessage);
+        return false;
     }
 }
