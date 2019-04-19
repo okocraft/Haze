@@ -69,16 +69,12 @@ public class HazeCommand implements CommandExecutor {
             val uuid = ((Player) sender).getUniqueId();
             val name = ((Player) sender).getName();
 
-            if (!database.getTableMap().keySet().contains(table))
-                return errorOccured(sender, ":NO_TABLE_EXIST");
-
-            if (database.hasRecord(table, name))
-                return errorOccured(sender, ":RECORD_EXIST");
-
-            database.addRecord(table, uuid, name);
-            sender.sendMessage(":ADDED_PLAYER");
-
-            return true;
+            if (database.addRecord(table, uuid, name)){
+                sender.sendMessage(":ADDED_PLAYER");
+                return true;
+            }
+            sender.sendMessage(":WRITE_FAILURE");
+            return false;
         }
 
         // hz get <table> <column> <uuid|mcid>
@@ -89,15 +85,6 @@ public class HazeCommand implements CommandExecutor {
             val table = args[1];
             val column = args[2];
             val entry = args[3];
-
-            if (!database.getTableMap().keySet().contains(table))
-                return errorOccured(sender, ":NO_TABLE_EXIST");
-
-            if (!database.getColumnMap(table).keySet().contains(column))
-                return errorOccured(sender, ":COLUMN_NOT_EXIST");
-
-            if (!database.hasRecord(table, entry))
-                return errorOccured(sender, ":RECORD_NOT_EXIST");
 
             sender.sendMessage(database.get(table, column, entry));
 
@@ -120,15 +107,13 @@ public class HazeCommand implements CommandExecutor {
                 type = "int";
             }
 
-            if (!database.getTableMap().keySet().contains(table))
-                return errorOccured(sender, ":NO_TABLE_EXIST");
+            if (database.addColumn(table, column, type)){
+                sender.sendMessage(":ADD_COLUMN");
+                return true;
+            }
 
-            if (database.getColumnMap(table).keySet().contains(column))
-                return errorOccured(sender, ":COLUMN_EXIST");
-
-            database.addColumn(table, column, type);
-
-            return true;
+            sender.sendMessage(":ADD_COLUMN_FAILURE");
+            return false;
         }
 
         // hz dropcolumn <table> <column>
@@ -194,18 +179,13 @@ public class HazeCommand implements CommandExecutor {
             val player = args[3];
             val value = args[4];
 
-            if (!database.getTableMap().keySet().contains(table))
-                return errorOccured(sender, ":NO_TABLE_EXIST");
+            if (database.set(table, column, player, value)){
+                sender.sendMessage(":SET_VALUE");
+                return true;
+            }
 
-            if (!database.getColumnMap(table).keySet().contains(column))
-                return errorOccured(sender, ":COLUMN_NOT_EXIST");
-
-            if (!database.hasRecord(table, player))
-                return errorOccured(sender, ":RECORD_NOT_EXIST");
-
-            database.set(table, column, player, value);
-
-            return true;
+            sender.sendMessage(":SET_FAILURE");
+            return false;
         }
 
         // hz give <table> <column> <player> <value>
@@ -218,17 +198,9 @@ public class HazeCommand implements CommandExecutor {
             val column = args[2];
             val player = args[3];
 
-            if (!database.getTableMap().keySet().contains(table))
-                return errorOccured(sender, ":NO_TABLE_EXIST");
-
-            if (!database.getColumnMap(table).keySet().contains(column))
-                return errorOccured(sender, ":COLUMN_NOT_EXIST");
-
-            if (!database.hasRecord(table, player))
-                return errorOccured(sender, ":RECORD_NOT_EXIST");
-
             if (!database.getColumnMap(table).get(column).equals("INTEGER")) {
-                sender.sendMessage(":INVALID_COLUMN_TYPE");
+                Haze.getInstance().getLog().warning(":INVALID_COLUMN_TYPE");
+                sender.sendMessage(":SET_FAILURE");
                 return false;
             }
 
@@ -253,13 +225,16 @@ public class HazeCommand implements CommandExecutor {
             if (subCommand.equalsIgnoreCase("take"))
                 calcedValue = String.valueOf(currentValue - inputValue);
 
-            database.set(table, column, player, calcedValue);
-
-            return true;
+            if (database.set(table, column, player, calcedValue)){
+                sender.sendMessage(":SET_VALUE");
+                return true;
+            }
+            sender.sendMessage(":SET_FAILURE");
+            return false;
         }
 
         sender.sendMessage(":PARAM_UNKNOWN");
-        return true;
+        return false;
     }
 
     public static String checkEntryType(String entry) {
