@@ -33,11 +33,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+import java.util.logging.Logger;
 import java.util.Map;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import lombok.Getter;
 import lombok.NonNull;
@@ -74,6 +72,11 @@ public class Database {
      */
     private static Optional<Connection> connection;
 
+    /**
+     * ロガー
+     */
+    private static Logger log;
+
     public Database() {
         // Configure database properties
         DBProps = new Properties();
@@ -82,6 +85,8 @@ public class Database {
 
         // Create new thread pool
         threadPool = Executors.newSingleThreadExecutor();
+
+        log = Haze.getInstance().getLog();
     }
 
     /**
@@ -94,8 +99,6 @@ public class Database {
      * @author akaregi
      */
     public boolean connect(String url) {
-        val log = Haze.getInstance().getLog();
-
         // Check if driver exists
         try {
             Class.forName("org.sqlite.JDBC");
@@ -206,6 +209,7 @@ public class Database {
 
     /**
      * WIP: データベースにレコードを追加する。
+     * 失敗した場合はコンソールにログを出力する。
      *
      * @since 1.0.0-SNAPSHOT
      * @author akaregi
@@ -213,9 +217,22 @@ public class Database {
      * @param table 操作するテーブル
      * @param uuid UUID
      * @param name 名前
+     * 
+     * @return 成功すればtrue 失敗すればfalse
      */
-    public void addRecord(@NonNull String table, @NonNull UUID uuid, @NonNull String name) {
-        prepare("INSERT OR IGNORE INTO " + table + " (uuid, player) VALUES (?, ?)").ifPresent(statement -> {
+    public boolean addRecord(@NonNull String table, @NonNull UUID uuid, @NonNull String name) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (hasRecord(table, name)){
+            log.warning(":RECORD_EXIST");
+            return false;
+        }
+
+        return prepare("INSERT OR IGNORE INTO " + table + " (uuid, player) VALUES (?, ?)").map(statement -> {
             try {
                 statement.setString(1, uuid.toString());
                 statement.setString(2, name);
@@ -223,36 +240,53 @@ public class Database {
 
                 // Execute this batch
                 threadPool.submit(new StatementRunner(statement));
+                return true;
             } catch (SQLException e) {
                 e.printStackTrace();
+                return false;
             }
-        });
+        }).orElse(false);
     }
 
     /**
      * テーブルからレコードを削除する。
+     * 失敗した場合はコンソールにログを出力する。
      *
      * @since 1.1.0-SNAPSHOT
      * @author LazyGon
      *
      * @param table 操作するテーブル
      * @param entry プレイヤー
+     * 
+     * @return 成功すればtrue 失敗すればfalse
      */
-    public void removeRecord(@NonNull String table, @NonNull String entry) {
+    public boolean removeRecord(@NonNull String table, @NonNull String entry) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (!hasRecord(table, entry)){
+            log.warning(":NO_RECORD_EXIST");
+            return false;
+        }
 
         String entryType = HazeCommand.checkEntryType(entry);
 
-        prepare("DELETE FROM " + table + "WHERE " + entryType + " = " + entry).ifPresent(statement -> {
+        return prepare("DELETE FROM " + table + " WHERE " + entryType + " = ?").map(statement -> {
             try {
                 statement.setString(1, entry);
                 statement.addBatch();
 
                 // Execute this batch
                 threadPool.submit(new StatementRunner(statement));
+                return true;
             } catch (SQLException e) {
                 e.printStackTrace();
+                return false;
             }
-        });
+        }).orElse(false);
     }
 
     /**
@@ -262,10 +296,15 @@ public class Database {
      * @author akaregi
      *
      * @param table 操作するテーブル
-     * @param uuid UUID
-     * @param name 名前
+     * @param entry uuidでもmcidでも可
      */
     public boolean hasRecord(@NonNull String table, @NonNull String entry) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
         String entryType = HazeCommand.checkEntryType(entry);
 
         val statement = prepare("SELECT " + entryType + " FROM " + table + " WHERE " + entryType + " = ?");
@@ -297,12 +336,27 @@ public class Database {
      * @param entry  プレイヤー。uuidでもmcidでも可
      * @param value  新しい値
      */
-    public void set(@NonNull String table, @NonNull String column, @NonNull String entry, String value) {
+    public boolean set(@NonNull String table, @NonNull String column, @NonNull String entry, String value) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (!getColumnMap(table).keySet().contains(column)){
+            log.warning(":COLUMN_NOT_EXIST");
+            return false;
+        }
+
+        if (!hasRecord(table, entry)){
+            log.warning(":RECORD_NOT_EXIST");
+            return false;
+        }
 
         String entryType = HazeCommand.checkEntryType(entry);
 
-        prepare("UPDATE " + table + " SET " + column + " = ? WHERE " + entryType + " = ?")
-                .ifPresent(statement -> {
+        return prepare("UPDATE " + table + " SET " + column + " = ? WHERE " + entryType + " = ?")
+                .map(statement -> {
                     try {
                         statement.setString(1, value);
                         statement.setString(2, entry);
@@ -310,14 +364,17 @@ public class Database {
 
                         // Execute this batch
                         threadPool.submit(new StatementRunner(statement));
+                        return true;
                     } catch (SQLException e) {
                         e.printStackTrace();
+                        return false;
                     }
-                });
+                }).orElse(false);
     }
 
     /**
      * {@code table} で指定したテーブルの列 {@code column} の値を取得する。
+     * テーブル、カラム、レコードのいずれかが存在しない場合は対応するエラー文字列を返す。
      * 
      * @author akaregi
      * @since 1.0.0-SNAPSHOT
@@ -329,6 +386,15 @@ public class Database {
      */
     public String get(@NonNull String table, String column, String entry) {
 
+        if (!getTableMap().keySet().contains(table))
+            return ":NO_TABLE_EXIST";
+
+        if (!getColumnMap(table).keySet().contains(column))
+            return ":COLUMN_NOT_EXIST";
+
+        if (!hasRecord(table, entry))
+            return ":RECORD_NOT_EXIST";
+
         String entryType = HazeCommand.checkEntryType(entry);
 
         val statement = prepare("SELECT " + column + " FROM " + table + " WHERE " + entryType + " = ?");
@@ -337,7 +403,6 @@ public class Database {
             try {
                 stmt.setString(1, entry);
                 ResultSet rs = stmt.executeQuery();
-                rs.next();
                 return rs.getString(column);
             } catch (SQLException exception) {
                 exception.printStackTrace();
@@ -362,8 +427,21 @@ public class Database {
      * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
     public boolean addColumn(String table, String column, String type) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (getColumnMap(table).keySet().contains(column)){
+            log.warning(":COLUMN_EXIST");
+            return false;
+        }
+
+
+        String whenTypeIsInteger = (type.equalsIgnoreCase("INTEGER")) ? " NOT NULL DEFAULT '0'" : "";
         val statement = prepare(
-                "ALTER TABLE " + table + " ADD " + column + " " + type + " NOT NULL DEFAULT '0'");
+                "ALTER TABLE " + table + " ADD " + column + " " + type + whenTypeIsInteger);
 
         return statement.map(stmt -> {
             try {
@@ -391,6 +469,16 @@ public class Database {
      * @return 成功したなら {@code true} 、さもなくば {@code false} 。
      */
     public boolean dropColumn(String table, String column) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (!getColumnMap(table).keySet().contains(column)){
+            log.warning(":COLUMN_NOT_EXIST");
+            return false;
+        }
 
         // 新しいテーブルの列
         StringBuilder columnsBuilder = new StringBuilder();
@@ -438,12 +526,18 @@ public class Database {
      *
      * @param table 調べるテーブル。
      *
-     * @return テーブルに含まれるcolumnの名前と型のマップ
+     * @return テーブルに含まれるcolumnの名前と型のマップ 失敗したら空のマップを返す。
      */
     public Map<String, String> getColumnMap(String table) {
-        val statement = prepare("SELECT * FROM " + table + " WHERE 0=1");
-
+        
         Map<String, String> columnMap = new HashMap<>();
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return columnMap;
+        }
+
+        val statement = prepare("SELECT * FROM " + table + " WHERE 0=1");
 
         return statement.map(stmt -> {
             try {
@@ -499,6 +593,11 @@ public class Database {
     public Map<String, String> getPlayersMap(String table) {
 
         Map<String, String> playersMap = new HashMap<>();
+        
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return playersMap;
+        }
 
         val statement = prepare("SELECT uuid, player FROM " + table);
 
@@ -512,47 +611,9 @@ public class Database {
             }
         });
 
+        if (playersMap.isEmpty())
+            log.warning(":MAP_IS_EMPTY");
         return playersMap;
-    }
-
-    /**
-     * 指定したテーブルの、指定したプレイヤーの全カラムのデータをリストで取得する
-     *
-     * @author LazyGon
-     * @since 1.1.0-SNAPSHOT
-     *
-     * @param table 調べるテーブル。
-     * @param player 調べるプレイヤー。uuidでもmcidでも可。
-     *
-     * @return データのリスト
-     */
-    public List<Object> getAllData(String table, String player) {
-
-        String entryType = HazeCommand.checkEntryType(player);
-
-        val statement = prepare("SELECT * FROM " + table + " WHERE " + entryType + " = ?");
-
-        List<Object> allDataList = new ArrayList<>();
-
-        statement.ifPresent(stmt -> {
-            try {
-                stmt.setString(1, player);
-
-                ResultSet rs = stmt.executeQuery();
-                ResultSetMetaData rsmd = rs.getMetaData();
-
-                for (int i = 1; i <= rsmd.getColumnCount(); i++){
-                    allDataList.add(rs.getString(rsmd.getColumnName(i)));
-                    if (rs.wasNull())
-                        allDataList.remove(allDataList.size() - 1);
-                }
-
-            } catch (SQLException exception) {
-                exception.printStackTrace();
-            }
-        });
-
-        return allDataList;
     }
 
     /**
@@ -565,20 +626,37 @@ public class Database {
      * @param column
      * @param entry
      */
-    public void removeValue(@NonNull String table, String column, String entry) {
+    public boolean removeValue(@NonNull String table, String column, String entry) {
+
+        if (!getTableMap().keySet().contains(table)){
+            log.warning(":NO_TABLE_EXIST");
+            return false;
+        }
+
+        if (!getColumnMap(table).keySet().contains(column)){
+            log.warning(":COLUMN_NOT_EXIST");
+            return false;
+        }
+
+        if (!hasRecord(table, entry)){
+            log.warning(":RECORD_NOT_EXIST");
+            return false;
+        }
 
         String entryType = HazeCommand.checkEntryType(entry);
 
         val statement = prepare("UPDATE " + table + " SET " + column + " = NULL WHERE " + entryType + " = ?");
 
-        statement.ifPresent(stmt -> {
+        return statement.map(stmt -> {
             try {
                 stmt.setString(1, entry);
                 stmt.executeUpdate();
+                return true;
             } catch (SQLException exception) {
                 exception.printStackTrace();
+                return false;
             }
-        });
+        }).orElse(false);
     }
 
     /**

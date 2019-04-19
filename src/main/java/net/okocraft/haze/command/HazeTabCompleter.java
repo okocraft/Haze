@@ -95,8 +95,8 @@ public class HazeTabCompleter implements TabCompleter {
                 return StringUtil.copyPartialMatches(args[2], columnList, resultList);
 
             case "list":
-                if (args[1].equals("column"))
-                    return StringUtil.copyPartialMatches(args[1], database.getTableMap().keySet().stream().collect(Collectors.toList()), resultList);
+                if (args[1].equalsIgnoreCase("column"))
+                    return StringUtil.copyPartialMatches(args[2], database.getTableMap().keySet().stream().collect(Collectors.toList()), resultList);
                 return resultList;
 
             }
@@ -115,7 +115,7 @@ public class HazeTabCompleter implements TabCompleter {
                 return StringUtil.copyPartialMatches(args[3], playerList, resultList);
 
             case "addcolumn":
-                return StringUtil.copyPartialMatches(args[3], Arrays.asList("TEXT", "INTEGER", "NULL", "BROB", "REAL"), resultList);
+                return StringUtil.copyPartialMatches(args[3], Arrays.asList("TEXT", "INTEGER", "NONE", "BROB", "REAL"), resultList);
 
             case "give":
                 return StringUtil.copyPartialMatches(args[3], playerList, resultList);
@@ -131,13 +131,13 @@ public class HazeTabCompleter implements TabCompleter {
             switch (operation) {
 
             case "set":
-                return StringUtil.copyPartialMatches(args[3], Arrays.asList("<value>"), resultList);
+                return StringUtil.copyPartialMatches(args[4], Arrays.asList("<value>"), resultList);
 
             case "give":
-                return StringUtil.copyPartialMatches(args[3], IntStream.range(1, 100).boxed().map(String::valueOf).collect(Collectors.toList()), resultList);
+                return StringUtil.copyPartialMatches(args[4], IntStream.range(1, 100).boxed().map(String::valueOf).collect(Collectors.toList()), resultList);
 
             case "take":
-                return StringUtil.copyPartialMatches(args[3], IntStream.range(1, 100).boxed().map(String::valueOf).collect(Collectors.toList()), resultList);
+                return StringUtil.copyPartialMatches(args[4], IntStream.range(1, 100).boxed().map(String::valueOf).collect(Collectors.toList()), resultList);
 
             }
         }
