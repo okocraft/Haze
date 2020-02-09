@@ -26,70 +26,39 @@ package net.okocraft.haze;
 
 import lombok.Getter;
 
+import java.nio.file.Path;
 import java.util.logging.Logger;
-
-// NoClassDefFoundException 発生
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import net.okocraft.haze.command.HazeCommand;
-import net.okocraft.haze.command.HazeTabCompleter;
-import net.okocraft.haze.database.Database;
+import net.okocraft.sqlibs.SQLibs;
 
 /**
  * @author OKOCRAFT
  */
 public class Haze extends JavaPlugin {
 
-    /**
-     * ロガー
-     */
-    @Getter
-    private final Logger log = getLogger();
-
-    /**
-     * プラグイン Haze のインスタンス。
-     */
     private static Haze instance;
 
-    /**
-     * Haze のバージョン。
-     */
     @Getter
-    private final String version;
+    private Logger log;
 
-
-    /**
-     * データベース。
-     */
     @Getter
-    private final Database database;
-
-    public Haze() {
-        version = getClass().getPackage().getImplementationVersion();
-        database = new Database();
-    }
+    private SQLibs sqlibs;
 
     @Override
     public void onEnable() {
+        Path dbPath = getDataFolder().toPath().resolve("database.db");
+        sqlibs = new SQLibs(dbPath);
+        
         saveDefaultConfig();
-        // Connect to database. If can't, disable Haze.
-        if (!database.connect(getDataFolder().getPath() + "/data.db")) {
-            setEnabled(false);
-
-            return;
-        }
-
+        
         // Implementation info
         log.info("Installed in : " + getDataFolder().getPath());
-        log.info("Database file: " + database.getDBUrl());
+        log.info("Database file: " + dbPath.toFile().getName());
+        
 
-        // Register command /haze
-        getCommand("haze").setExecutor(new HazeCommand(database));
-        getCommand("haze").setTabCompleter(new HazeTabCompleter(database));
 
         // GO GO GO
         log.info("Haze has been enabled!");
@@ -97,8 +66,7 @@ public class Haze extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        database.dispose();
-
+        sqlibs.dispose();
         log.info("Haze has been disabled!");
     }
 

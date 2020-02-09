@@ -50,7 +50,7 @@ public class HazeCommand implements CommandExecutor {
 
         // hz version
         if (subCommand.equalsIgnoreCase("version")) {
-            sender.sendMessage(Haze.getInstance().getVersion());
+            sender.sendMessage(Haze.getInstance().getDescription().getVersion());
 
             return true;
         }
