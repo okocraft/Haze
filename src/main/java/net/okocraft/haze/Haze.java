@@ -73,6 +73,9 @@ public class Haze extends JavaPlugin {
     public static Haze getInstance() {
         if (instance == null) {
             instance = (Haze) Bukkit.getPluginManager().getPlugin("Haze");
+            if (instance == null) {
+                throw new IllegalStateException("Haze is not enabled.");
+            }
         }
 
         return instance;
