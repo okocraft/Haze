@@ -13,23 +13,15 @@ import net.okocraft.sqlibs.SQLibs;
 public class PointManager {
 
     private static final String TABLE = "haze_points";
-
-    static PointManager instance;
     private SQLibs sqlibs;
 
     public PointManager(Path databaseFile) {
-        if (instance != null) {
-            throw new IllegalStateException("The Points is already instantiated. Use getInstance method.");
-        }
-
-        instance = this;
         sqlibs = new SQLibs(databaseFile);
-        
         sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
         sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
     }
     
-    public SQLibs getSQL() {
+    SQLibs getSQL() {
         return sqlibs;
     }
 

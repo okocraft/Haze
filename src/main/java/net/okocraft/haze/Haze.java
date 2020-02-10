@@ -26,7 +26,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.okocraft.haze.command.HazeCommand;
-import net.okocraft.sqlibs.SQLibs;
 
 /**
  * @author OKOCRAFT
@@ -36,16 +35,16 @@ public class Haze extends JavaPlugin {
     private static Haze instance;
 
     @Getter
-    private Logger log = getLogger();
+    private PointManager pointManager;
 
     @Getter
-    private SQLibs sqlibs;
+    private Logger log = getLogger();
 
     @Override
     public void onEnable() {
         Path dbPath = getDataFolder().toPath().resolve("database.db");
-        sqlibs = new SQLibs(dbPath);
-        
+        pointManager = new PointManager(dbPath);
+
         saveDefaultConfig();
         HazeCommand.init();
         
@@ -59,7 +58,7 @@ public class Haze extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        sqlibs.dispose();
+        pointManager.getSQL().dispose();
         log.info("Haze has been disabled!");
     }
 
@@ -72,9 +71,5 @@ public class Haze extends JavaPlugin {
         }
 
         return instance;
-    }
-
-    public PointManager getPointManager() {
-        return PointManager.instance;
     }
 }
