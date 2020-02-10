@@ -15,13 +15,6 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * todo
- * 
- * メッセージの充実(優先度中)
- * 
- */
-
 package net.okocraft.haze;
 
 import lombok.Getter;
@@ -79,5 +72,9 @@ public class Haze extends JavaPlugin {
         }
 
         return instance;
+    }
+
+    public PointManager getPointManager() {
+        return PointManager.instance;
     }
 }
