@@ -1,0 +1,48 @@
+plugin:
+  version: ${project.version}
+  prefix: "&8[&6Haze&8]&r"
+
+command:
+  general:
+    info:
+      usage: "&7使用法: &b%usage%"
+    error:
+      invalid-argument: "&c%argument% という引数は存在しません。"
+      no-permission: "&c%permission% の権限がありません。"
+      cannot-use-from-console: "&cこのコマンドはコンソールからは使えません。"
+      player-cannot-use: "&cこのコマンドはプレイヤーには使えません。"
+      not-enough-arguments: "&c引数が足りません。"
+      invalid-number: "&c%number% は不正な数字です。"
+      no-player-found: "&c%player% というプレイヤーが見つかりませんでした。"
+      no-point-name-found: "&c%point-name% というポイントは登録されていません。"
+  help:
+    description: "このヘルプを表示します"
+    header: "&7------- &6Haze ヘルプ &7-------"
+    format: "&b%usage% &7- &a%description%"
+  pointlist:
+    description: "ポイントの種類の一覧を表示します"
+    header: "&7ポイントリスト"
+    format: "  &7- &b%point-name%"
+  add:
+    description: "ポイントの種類を増やします"
+    invalid-name: "&c不正なポイント名です。英数以外またはSQLiteのキーワードは使えません。"
+    success: "&7ポイント &b%point-name% &7を追加しました。"
+    point-already-exist: "&cそのポイントはすでにあります。"
+  remove:
+    description: "ポイントを削除します"
+    success: "&7ポイント &b%point-name% &7を削除しました。"
+  reload:
+    description: "プラグインを再読込します"
+    success: "&7プラグインを再読込しました。"
+  increase:
+    description: "プレイヤーのポイントを増やします"
+    success: "&b%player% &7の &b%point-name% &7のポイントを &b%difference% &7増やしました。"
+  decrease:
+    description: "プレイヤーのポイントを減らします"
+    success: "&b%player% &7の &b%point-name% &7のポイントを &b%difference% &7減らしました。"
+  set:
+    description: "プレイヤーのポイントをある値に変更します"
+    success: "&b%player% &7の &b%point-name% &7のポイントを &b%amount% &7にしました。"
+  get:
+    description: "プレイヤーのポイントを表示します"
+    result: "&b%player% &7の &b%point-name% &7のポイント: &b%amount%"

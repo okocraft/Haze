@@ -18,19 +18,47 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-main: net.okocraft.haze.Haze
 name: ${project.artifactId}
 version: ${project.version}
-description: "Haze, Player's Point Manager."
-authors: [okocraft]
-api-version: "1.13"
-
-permissions:
-  haze.admin:
-    default: op
-
+main: ${project.groupId}.${project.artifactId}
+author: LazyGon
 commands:
   haze:
-    aliases: [hz]
-    description: "Command for Haze"
-    permission: haze.admin
+    description: Base Command of Haze plugin.
+
+permissions:
+# command permissions
+  haze.*:
+    description: Permission for all command
+    children:
+      haze.add: true
+      haze.remove: true
+      haze.increase: true
+      haze.decrease: true
+      haze.set: true
+      haze.reload: true
+    default: op
+  haze.add:
+    description: Permission for command /haze add <point-name>
+    default: op
+  haze.remove:
+    description: Permission for command /haze remove <point-name>
+    default: op
+  haze.increase:
+    description: Permission for command /haze increase <point-name> <player> <amount>
+    default: op
+  haze.decrease:
+    description: Permission for command /haze decrease <point-name> <player> <amount>
+    default: op
+  haze.set:
+    description: Permission for command /haze set <point-name> <player> <amount>
+    default: op
+  haze.reload:
+    description: Permission for command /haze reload
+    default: op
+  haze.get:
+    description: Permission for command /haze get <point-name> <player>
+    default: op
+  haze.pointlist:
+    description: Permission for command /haze pointlist
+    default: op
