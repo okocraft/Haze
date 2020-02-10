@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import net.okocraft.haze.command.HazeCommand;
 import net.okocraft.sqlibs.SQLibs;
 
 /**
@@ -46,12 +47,11 @@ public class Haze extends JavaPlugin {
         sqlibs = new SQLibs(dbPath);
         
         saveDefaultConfig();
+        HazeCommand.init();
         
         // Implementation info
         log.info("Installed in : " + getDataFolder().getPath());
         log.info("Database file: " + dbPath.toFile().getName());
-        
-
 
         // GO GO GO
         log.info("Haze has been enabled!");
