@@ -1,4 +1,4 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,12 +21,12 @@ public final class AddCommand extends BaseCommand {
 
     @Override
     public boolean runCommand(CommandSender sender, String[] args) {
-        if (PLUGIN.getPointManager().getPoints().contains(args[1])) {
+        if (PLUGIN.getCache().getPoints().contains(args[1])) {
             MESSAGES.sendMessage(sender, "command.add.point-already-exist");
             return false;
         }
         
-        if (!PLUGIN.getPointManager().add(args[1])) {
+        if (!PLUGIN.getCache().addPoint(args[1])) {
             MESSAGES.sendMessage(sender, "command.add.error-point-add");
             return false;
         }

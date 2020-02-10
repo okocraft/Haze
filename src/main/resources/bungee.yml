@@ -1,0 +1,4 @@
+name: ${project.artifactId}
+version: ${project.version}
+main: net.okocraft.haze.bungee.Haze
+author: LazyGon

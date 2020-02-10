@@ -1,27 +1,8 @@
-#
-#  This file is part of Haze.
-#
-#  Haze, Player's Point Manager.
-#  Copyright (C) 2019 OKOCRAFT
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-
-messages:
-    param:
-        insufficient: "Insufficient parameter(s)."
-        unknown: "Unknowm parameter(s)."
-
-    permission:
-        insufficient: "Insufficient permission."
+bungee:
+  # If this is false, local sqlite database will be used.
+  # and all after settings will be ignored.
+  enabled: false
+  # Haze will wait for data in MAIN THREAD this milli seconds.
+  # larger value cause heavy lagg on data getting.
+  # If your bungee has slow speed connection, put more large value.
+  data-get-timeout: 500

@@ -1,4 +1,4 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +24,7 @@ public final class GetCommand extends BaseCommand {
     @Override
     public boolean runCommand(CommandSender sender, String[] args) {
         String pointName = args[1];
-        if (!PLUGIN.getPointManager().getPoints().contains(pointName)) {
+        if (!PLUGIN.getCache().getPoints().contains(pointName)) {
             MESSAGES.sendNoPointNameFound(sender, pointName);
             return false;
         }
@@ -36,7 +36,7 @@ public final class GetCommand extends BaseCommand {
             return false;
         }
 
-        long amount = PLUGIN.getPointManager().get(pointName, player.getUniqueId());
+        long amount = PLUGIN.getCache().get(pointName, player);
         MESSAGES.sendMessage(sender, "command.get.result", Map.of("%player%", player.getName(), "%point-name%", pointName, "%amount%", String.valueOf(amount)));
 
         return true;
@@ -45,7 +45,7 @@ public final class GetCommand extends BaseCommand {
     @Override
     public List<String> runTabComplete(CommandSender sender, String[] args) {
         List<String> result = new ArrayList<>();
-        List<String> points = new ArrayList<>(PLUGIN.getPointManager().getPoints());
+        List<String> points = new ArrayList<>(PLUGIN.getCache().getPoints());
         if (args.length == 2) {
             return StringUtil.copyPartialMatches(args[1], points, result);
         }
@@ -54,7 +54,7 @@ public final class GetCommand extends BaseCommand {
             return result;
         }
 
-        List<String> players = new ArrayList<>(PLUGIN.getPointManager().getPlayers().values());
+        List<String> players = new ArrayList<>(PLUGIN.getCache().getPointsInstance().getPlayers().values());
 
         if (args.length == 3) {
             return StringUtil.copyPartialMatches(args[2], players, result);

@@ -1,12 +1,12 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.List;
 import java.util.Locale;
 
 import org.bukkit.command.CommandSender;
 
-import net.okocraft.haze.Haze;
-import net.okocraft.haze.config.Messages;
+import net.okocraft.haze.bukkit.Haze;
+import net.okocraft.haze.bukkit.config.Messages;
 
 public abstract class BaseCommand {
 
@@ -19,6 +19,9 @@ public abstract class BaseCommand {
     private final boolean consoleCommand;
     private final String usage;
 
+    /**
+     * コンストラクタ
+     */
     protected BaseCommand(String permissionNode, int leastArgLength, boolean playerCommand, boolean consoleCommand, String usage) {
         this.permissionNode = permissionNode;
         this.leastArgLength = leastArgLength;

@@ -1,10 +1,10 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.List;
 
 import org.bukkit.command.CommandSender;
 
-import net.okocraft.haze.config.Config;
+import net.okocraft.haze.bukkit.config.Config;
 
 public final class ReloadCommand extends BaseCommand {
 

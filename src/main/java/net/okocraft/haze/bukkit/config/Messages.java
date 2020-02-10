@@ -1,27 +1,20 @@
-package net.okocraft.haze.config;
+package net.okocraft.haze.bukkit.config;
 
 import java.util.Map;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-import net.okocraft.configurationapi.BaseConfig;
-import net.okocraft.haze.Haze;
-
-public class Messages extends BaseConfig {
-
-    private static Haze plugin = Haze.getInstance();
-    private static Messages instance = new Messages();
-
-    public Messages() {
-        super("messages.yml", plugin.getDataFolder(), plugin.getResource("messages.yml"));
-        if (instance != null) {
-            throw new ExceptionInInitializerError("Message is already initialized.");
-        }
+public final class Messages extends CustomConfig {
+    
+    private static final Messages INSTANCE = new Messages("messages.yml");
+    
+    Messages(String name) {
+        super(name);
     }
 
     public static Messages getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     /**
@@ -33,7 +26,7 @@ public class Messages extends BaseConfig {
      * @param placeholders
      */
     public void sendMessage(CommandSender sender, boolean addPrefix, String path, Map<String, Object> placeholders) {
-        String prefix = addPrefix ? getConfig().getString("command.general.info.plugin-prefix", "&8[&6Haze&8]&r") + " " : "";
+        String prefix = addPrefix ? get().getString("command.general.info.plugin-prefix", "&8[&6Haze&8]&r") + " " : "";
         String message = prefix + getMessage(path);
         for (Map.Entry<String, Object> placeholder : placeholders.entrySet()) {
             message = message.replace(placeholder.getKey(), placeholder.getValue().toString());
@@ -81,9 +74,9 @@ public class Messages extends BaseConfig {
      * @return
      */
     public String getMessage(String path) {
-        return getConfig().getString(path, path);
+        return get().getString(path, path);
     }
-    
+
     public void sendInvalidArgument(CommandSender sender, String invalid) {
         sendMessage(sender, "command.general.error.invalid-argument", Map.of("%argument%", invalid));
     }
@@ -118,9 +111,5 @@ public class Messages extends BaseConfig {
 
     public void sendNoPointNameFound(CommandSender sender, String pointName) {
         sendMessage(sender, "command.general.error.no-point-name-found", Map.of("%point-name%", pointName));
-    }
-
-    void reload() {
-        reloadConfig();
     }
 }

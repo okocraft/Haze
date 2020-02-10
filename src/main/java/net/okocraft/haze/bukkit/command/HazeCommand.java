@@ -1,11 +1,11 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -60,10 +60,19 @@ public class HazeCommand extends BaseCommand implements CommandExecutor, TabComp
         }
     }
 
-    public static void init() {
-        PluginCommand pluginCommand = Objects.requireNonNull(PLUGIN.getCommand("haze"), "Command is not written in plugin.yml");
-        pluginCommand.setExecutor(INSTANCE);
-        pluginCommand.setTabCompleter(INSTANCE);
+    public static HazeCommand getInstance() {
+        return INSTANCE;
+    }
+
+    public void init() {
+        PluginCommand pluginCommand = PLUGIN.getCommand("haze");
+        if (pluginCommand == null) {
+            PLUGIN.getLogger().severe("Command \"/haze\" is not written in plugin.yml");
+            Bukkit.getPluginManager().disablePlugin(PLUGIN);
+        }
+
+        pluginCommand.setExecutor(this);
+        pluginCommand.setTabCompleter(this);
     }
 
     @Override

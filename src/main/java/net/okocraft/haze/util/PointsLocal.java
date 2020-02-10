@@ -1,4 +1,4 @@
-package net.okocraft.haze;
+package net.okocraft.haze.util;
 
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -10,18 +10,26 @@ import java.util.stream.Collectors;
 import net.okocraft.sqlibs.ColumnType;
 import net.okocraft.sqlibs.SQLibs;
 
-public class PointManager {
+public class PointsLocal implements Points {
 
     private static final String TABLE = "haze_points";
+
+    private static Points instance;
     private SQLibs sqlibs;
 
-    public PointManager(Path databaseFile) {
+    public PointsLocal(Path databaseFile) {
+        if (instance != null) {
+            throw new IllegalStateException("The Points is already instantiated. Use getInstance method.");
+        }
+
+        instance = this;
         sqlibs = new SQLibs(databaseFile);
+        
         sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
         sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
     }
     
-    SQLibs getSQL() {
+    public SQLibs getSQL() {
         return sqlibs;
     }
 
@@ -39,6 +47,7 @@ public class PointManager {
                 + "') ON CONFLICT(uuid) DO UPDATE SET player = '" + name + "' WHERE uuid = '" + uuid + "'");
     }
 
+    @Override
     public boolean add(String pointName) {
         if (getPoints().contains(pointName)) {
             return false;
@@ -47,6 +56,7 @@ public class PointManager {
         return sqlibs.addColumn(TABLE, pointName, ColumnType.INTEGER, true);
     }
 
+    @Override
     public boolean remove(String pointName) {
         if (!getPoints().contains(pointName)) {
             return false;
@@ -55,6 +65,7 @@ public class PointManager {
         return sqlibs.dropColumn(TABLE, pointName);
     }
 
+    @Override
     public boolean set(String pointName, UUID uniqueId, long amount) {
         if (!getPoints().contains(pointName)) {
             return false;
@@ -63,6 +74,7 @@ public class PointManager {
         return sqlibs.set(TABLE, uniqueId.toString(), pointName, String.valueOf(amount));
     }
 
+    @Override
     public long get(String pointName, UUID uniqueId) {
         if (!getPoints().contains(pointName)) {
             return 0L;
@@ -75,6 +87,7 @@ public class PointManager {
         }
     }
 
+    @Override
     public Map<String, Long> get(UUID uniqueId) {
         Map<String, Long> result = new HashMap<>();
         try {
@@ -85,21 +98,15 @@ public class PointManager {
         }
     }
 
+    @Override
     public Set<String> getPoints() {
         return sqlibs.getColumnMap(TABLE).entrySet().stream()
                 .filter(entry -> entry.getValue() == ColumnType.INTEGER)
                 .map(Map.Entry::getKey).collect(Collectors.toSet());
     }
 
+    @Override
     public Map<String, String> getPlayers() {
         return sqlibs.getValues(TABLE, "player");
-    }
-
-    public boolean increase(String point, UUID player, long amount) {
-        return set(point, player, get(point, player) + amount);
-    }
-
-    public boolean decrease(String point, UUID player, long amount) {
-        return set(point, player, get(point, player) - amount);
     }
 }

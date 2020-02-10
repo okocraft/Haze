@@ -1,4 +1,4 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +19,7 @@ public class PointListCommand extends BaseCommand {
     @Override
     public boolean runCommand(CommandSender sender, String[] args) {
         MESSAGES.sendMessage(sender, "command.pointlist.header");
-        PLUGIN.getPointManager().getPoints().forEach(pointName -> {
+        PLUGIN.getCache().getPoints().forEach(pointName -> {
             MESSAGES.sendMessage(sender, false, "command.pointlist.format", Map.of("%point-name%", pointName));
         });
         return true;

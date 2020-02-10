@@ -1,4 +1,4 @@
-package net.okocraft.haze.command;
+package net.okocraft.haze.bukkit.command;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,12 +22,12 @@ public final class RemoveCommand extends BaseCommand {
     @Override
     public boolean runCommand(CommandSender sender, String[] args) {
         String pointName = args[1];
-        if (!PLUGIN.getPointManager().getPoints().contains(pointName)) {
+        if (!PLUGIN.getCache().getPoints().contains(pointName)) {
             MESSAGES.sendNoPointNameFound(sender, pointName);
             return false;
         }
 
-        if (PLUGIN.getPointManager().remove(pointName)) {
+        if (PLUGIN.getCache().removePoint(pointName)) {
             MESSAGES.sendMessage(sender, "command.remove.success", Map.of("%point-name%", pointName));
             return true;
         }
@@ -39,7 +39,7 @@ public final class RemoveCommand extends BaseCommand {
     @Override
     public List<String> runTabComplete(CommandSender sender, String[] args) {
         if (args.length == 2) {
-            return StringUtil.copyPartialMatches(args[1], new ArrayList<>(PLUGIN.getPointManager().getPoints()), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[1], new ArrayList<>(PLUGIN.getCache().getPoints()), new ArrayList<>());
         }
         return List.of();
     }
