@@ -36,7 +36,7 @@ public class Haze extends JavaPlugin {
     private static Haze instance;
 
     @Getter
-    private Logger log;
+    private Logger log = getLogger();
 
     @Getter
     private SQLibs sqlibs;
