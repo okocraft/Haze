@@ -18,6 +18,15 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
+database:
+    use-mysql: false
+    mysql:
+        user: root
+        host: "localhost"
+        port: 3306
+        pass: "set_by_yourself"
+    table-prefix: haze_
+
 messages:
     param:
         insufficient: "Insufficient parameter(s)."

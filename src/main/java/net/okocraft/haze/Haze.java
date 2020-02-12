@@ -19,13 +19,13 @@ package net.okocraft.haze;
 
 import lombok.Getter;
 
-import java.nio.file.Path;
 import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.okocraft.haze.command.HazeCommand;
+import net.okocraft.haze.config.Config;
 
 /**
  * @author OKOCRAFT
@@ -42,15 +42,13 @@ public class Haze extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        Path dbPath = getDataFolder().toPath().resolve("database.db");
-        pointManager = new PointManager(dbPath);
-
         saveDefaultConfig();
-        HazeCommand.init();
         
         // Implementation info
-        log.info("Installed in : " + getDataFolder().getPath());
-        log.info("Database file: " + dbPath.toFile().getName());
+        log.info("We are using " + (Config.getInstance().isUsingMySQL() ? "MySQL" : "SQLite"));
+        pointManager = new PointManager();
+        
+        HazeCommand.init();
 
         // GO GO GO
         log.info("Haze has been enabled!");

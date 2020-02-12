@@ -1,12 +1,17 @@
 package net.okocraft.haze;
 
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 
+import org.bukkit.Bukkit;
+
+import net.okocraft.haze.config.Config;
 import net.okocraft.sqlibs.ColumnType;
 import net.okocraft.sqlibs.SQLibs;
 
@@ -15,8 +20,19 @@ public class PointManager {
     private static final String TABLE = "haze_points";
     private SQLibs sqlibs;
 
-    public PointManager(Path databaseFile) {
-        sqlibs = new SQLibs(databaseFile);
+    public PointManager() {
+        try {
+            if (Config.getInstance().isUsingMySQL()) {
+                sqlibs = new SQLibs(Config.getInstance().getMySQLConfig());
+            } else {
+                Path dbPath = Haze.getInstance().getDataFolder().toPath().resolve("database.db");
+                sqlibs = new SQLibs(dbPath);
+            }
+        } catch (SQLException e) {
+            Haze.getInstance().getLogger().log(Level.SEVERE, "Cannot connect to database.", e);
+            Bukkit.getPluginManager().disablePlugin(Haze.getInstance());     
+        }
+
         sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
         sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
     }
