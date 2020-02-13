@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -76,6 +77,10 @@ public class PointManager {
     public boolean set(String pointName, UUID uniqueId, long amount) {
         if (!getPoints().contains(pointName)) {
             return false;
+        }
+
+        if (!getPlayers().containsKey(uniqueId.toString())) {
+            updatePlayer(uniqueId, Optional.ofNullable(Bukkit.getOfflinePlayer(uniqueId).getName()).orElse("null"));
         }
 
         return sqlibs.set(TABLE, uniqueId.toString(), pointName, String.valueOf(amount));
