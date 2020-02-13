@@ -26,6 +26,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import net.okocraft.haze.command.HazeCommand;
 import net.okocraft.haze.config.Config;
+import net.okocraft.haze.listener.PlayerListener;
 
 /**
  * @author OKOCRAFT
@@ -48,6 +49,7 @@ public class Haze extends JavaPlugin {
         log.info("We are using " + (Config.getInstance().isUsingMySQL() ? "MySQL" : "SQLite"));
         pointManager = new PointManager();
         
+        PlayerListener.start();
         HazeCommand.init();
 
         // GO GO GO

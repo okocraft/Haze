@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.okocraft.haze</groupId>
     <artifactId>Haze</artifactId>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1.2</version>
     <name>Haze</name>
     <url>https://github.com/okocraft/Haze</url>
 
@@ -63,7 +63,7 @@
         <dependency>
             <groupId>net.okocraft.sqlibs</groupId>
             <artifactId>SQLibs</artifactId>
-            <version>1.1.0</version>
+            <version>1.1.2</version>
         </dependency>
     </dependencies>
 
