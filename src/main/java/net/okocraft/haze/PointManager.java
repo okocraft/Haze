@@ -33,8 +33,10 @@ public class PointManager {
             Bukkit.getPluginManager().disablePlugin(Haze.getInstance());     
         }
 
-        sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
-        sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
+        if (!sqlibs.getTables().contains(TABLE)) {
+            sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
+            sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
+        }
     }
     
     SQLibs getSQL() {
