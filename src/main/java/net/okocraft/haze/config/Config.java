@@ -35,8 +35,8 @@ public class Config extends BaseConfig {
         HikariConfig hikariConfig = new HikariConfig();
         
         // login data
-        hikariConfig.setDataSourceClassName("com.mysql.jdbc.Driver");
-        hikariConfig.setJdbcUrl("jdbc:mysql://" + config.getString("mysql.host", "localhost") + ":" + getConfig().getInt("mysql.port") + "/haze");
+        hikariConfig.setDriverClassName("com.mysql.jdbc.Driver");
+        hikariConfig.setJdbcUrl("jdbc:mysql://" + config.getString("mysql.host", "localhost") + ":" + getConfig().getInt("mysql.port") + "/haze?autoReconnect=true&useSSL=false");
         hikariConfig.addDataSourceProperty("user", config.getString("mysql.user", "root"));
         hikariConfig.addDataSourceProperty("password", config.getString("mysql.pass", ""));
         
