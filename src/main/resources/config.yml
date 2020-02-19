@@ -25,12 +25,4 @@ database:
         host: "localhost"
         port: 3306
         pass: "set_by_yourself"
-    table-prefix: haze_
-
-messages:
-    param:
-        insufficient: "Insufficient parameter(s)."
-        unknown: "Unknowm parameter(s)."
-
-    permission:
-        insufficient: "Insufficient permission."
+    db-name: haze
