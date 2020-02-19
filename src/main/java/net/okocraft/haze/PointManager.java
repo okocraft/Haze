@@ -13,8 +13,9 @@ import java.util.stream.Collectors;
 import org.bukkit.Bukkit;
 
 import net.okocraft.haze.config.Config;
-import net.okocraft.sqlibs.ColumnType;
 import net.okocraft.sqlibs.SQLibs;
+import net.okocraft.sqlibs.columntype.NumericDataType;
+import net.okocraft.sqlibs.columntype.StringDataType;
 
 public class PointManager {
 
@@ -23,8 +24,15 @@ public class PointManager {
 
     public PointManager() {
         try {
-            if (Config.getInstance().isUsingMySQL()) {
-                sqlibs = new SQLibs(Config.getInstance().getMySQLConfig());
+            Config config = Config.getInstance();
+            if (config.isUsingMySQL()) {
+                sqlibs = new SQLibs(
+                        config.getMySQLHost(),
+                        config.getMySQLPort(),
+                        config.getMySQLUser(),
+                        config.getMySQLPassword(),
+                        config.getDatabaseName()
+                );
             } else {
                 Path dbPath = Haze.getInstance().getDataFolder().toPath().resolve("database.db");
                 sqlibs = new SQLibs(dbPath);
@@ -35,8 +43,11 @@ public class PointManager {
         }
 
         if (!sqlibs.getTables().contains(TABLE)) {
-            sqlibs.createTable(TABLE, "uuid", ColumnType.TEXT);
-            sqlibs.addColumn(TABLE, "player", ColumnType.TEXT, true);
+            sqlibs.createTable(
+                    TABLE,
+                    StringDataType.CHAR.getBuilder().setTextLength(36).setName("uuid").setPrimary(true),
+                    StringDataType.VARCHAR.getBuilder().setTextLength(16).setName("player").setNotNull(true)
+            );
         }
     }
     
@@ -63,7 +74,7 @@ public class PointManager {
             return false;
         }
 
-        return sqlibs.addColumn(TABLE, pointName, ColumnType.INTEGER, true);
+        return sqlibs.addColumn(TABLE, NumericDataType.INTEGER.getBuilder().setName(pointName).setNotNull(true).setDefault("0"));
     }
 
     public boolean remove(String pointName) {
@@ -110,7 +121,7 @@ public class PointManager {
 
     public Set<String> getPoints() {
         return sqlibs.getColumnMap(TABLE).entrySet().stream()
-                .filter(entry -> entry.getValue() == ColumnType.INTEGER)
+                .filter(entry -> Set.of("INT", "INTEGER", "INT4").contains(entry.getValue()))
                 .map(Map.Entry::getKey).collect(Collectors.toSet());
     }
 
