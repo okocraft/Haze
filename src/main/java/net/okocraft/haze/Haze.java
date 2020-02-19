@@ -58,7 +58,9 @@ public class Haze extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        pointManager.getSQL().dispose();
+        if (pointManager != null) {
+            pointManager.getSQL().dispose();
+        }
         log.info("Haze has been disabled!");
     }
 
